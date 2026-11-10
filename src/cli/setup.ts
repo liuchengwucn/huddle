@@ -74,7 +74,7 @@ async function writeSidecarConfig(root: string, sidecar: string): Promise<void> 
     await writeFile(cfgPath, String(doc));
   } else {
     await mkdir(path.dirname(cfgPath), { recursive: true });
-    await writeFile(cfgPath, `# huddle repo config (shared with the team). Every field has a default; see the README.\nrepo: ${sidecar}\n`);
+    await writeFile(cfgPath, `# huddle repo config (shared with the team). Every field has a default; see https://github.com/liuchengwucn/huddle/blob/main/docs/configuration.md\nrepo: ${sidecar}\n`);
   }
 }
 
