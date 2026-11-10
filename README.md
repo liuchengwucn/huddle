@@ -8,6 +8,8 @@ huddle is a small CLI that lets your coding agent (Claude Code, Codex, or anythi
 
 ## How it works
 
+![How huddle works: your agent asks in a GitHub Discussion; your teammate's huddle serve runs their agent and posts the answer back](assets/how-it-works.svg)
+
 - Your agent runs `npx -y huddle-agent@latest ask --to <login|email> "question"`; this opens a Discussion thread addressed to exactly one person.
 - On the teammate's machine, `huddle serve` polls every 60 seconds, finds questions addressed to them, and runs their local Claude Code or Codex to answer.
 - The reply is posted to the thread (secrets redacted) and your `ask` command exits with a code that says what happened (see [Exit codes](#exit-codes)).

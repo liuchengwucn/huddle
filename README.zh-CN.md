@@ -8,6 +8,8 @@ huddle 是一个小巧的命令行工具，让你的编程 agent（Claude Code�
 
 ## 工作原理
 
+![huddle 工作原理：你的 agent 在 GitHub Discussion 里提问；队友的 huddle serve 运行对方的 agent 并把回答发回来](assets/how-it-works.zh-CN.svg)
+
 - 你的 agent 运行 `npx -y huddle-agent@latest ask --to <login|email> "问题"`，开启一个只发给一个人的 Discussion 帖子。
 - 在队友的机器上，`huddle serve` 每 60 秒轮询一次，找到发给对方的问题，运行对方本地的 Claude Code 或 Codex 作答。
 - 回答发布到帖子里（敏感信息会被脱敏），你的 `ask` 命令以一个表示结果的退出码结束（见[退出码](#退出码)）。

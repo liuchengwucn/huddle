@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 550" width="1000" height="550" role="img" aria-label="huddle 工作原理：你的 agent 在私有仓库的 GitHub Discussion 里提问；队友的 huddle serve 收到后运行对方本地的 agent，再把回答发回帖子。">
+  <style>
+    .bg { fill: #ffffff; }
+    .panel { fill: #f6f8fa; stroke: #d0d7de; }
+    .box { fill: #ffffff; stroke: #d0d7de; }
+    .frame { fill: none; stroke: #d0d7de; stroke-dasharray: 5 4; }
+    .q { fill: #ddf4ff; stroke: #54aeff; }
+    .a { fill: #dafbe1; stroke: #4ac26b; }
+    .t { fill: #1f2328; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+    .h { font-size: 16px; font-weight: 600; }
+    .b { font-weight: 600; }
+    .s { font-size: 12px; }
+    .m { fill: #59636e; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    .blue { fill: #0969da; }
+    .green { fill: #1a7f37; }
+    .ln { fill: none; stroke-width: 2; }
+    .lb { stroke: #0969da; }
+    .lg { stroke: #1a7f37; }
+    .lm { stroke: #59636e; }
+    .dash { stroke-dasharray: 6 4; }
+    .hb { fill: #0969da; }
+    .hg { fill: #1a7f37; }
+    .hm { fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .panel { fill: #161b22; stroke: #30363d; }
+      .box { fill: #0d1117; stroke: #3d444d; }
+      .frame { stroke: #3d444d; }
+      .q { fill: #0c2d6b; stroke: #1f6feb; }
+      .a { fill: #04260f; stroke: #238636; }
+      .t { fill: #e6edf3; }
+      .m { fill: #9198a1; }
+      .blue { fill: #4493f8; }
+      .green { fill: #3fb950; }
+      .lb { stroke: #4493f8; }
+      .lg { stroke: #3fb950; }
+      .lm { stroke: #9198a1; }
+      .hb { fill: #4493f8; }
+      .hg { fill: #3fb950; }
+      .hm { fill: #9198a1; }
+    }
+  </style>
+  <defs>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hb" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hg" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hm" d="M0 0L10 5L0 10z"/></marker>
+  </defs>
+
+  <rect class="bg" width="1000" height="550" rx="12"/>
+
+  <!-- Your machine -->
+  <rect class="panel" x="20" y="20" width="250" height="480" rx="12"/>
+  <text class="t h" x="145" y="52" text-anchor="middle">你的机器</text>
+  <text class="t s m" x="145" y="72" text-anchor="middle">alice</text>
+  <rect class="box" x="40" y="170" width="210" height="196" rx="8"/>
+  <text class="t b" x="145" y="205" text-anchor="middle">你的 agent</text>
+  <text class="t s m" x="145" y="227" text-anchor="middle">Claude Code / Codex</text>
+  <rect class="panel" x="55" y="252" width="180" height="32" rx="6"/>
+  <text class="t mono" x="145" y="273" text-anchor="middle">huddle ask --to bob</text>
+  <text class="t s m" x="145" y="312" text-anchor="middle">等待回答，</text>
+  <text class="t s m" x="145" y="330" text-anchor="middle">用退出码表示结果</text>
+  <text class="t mono s m" x="145" y="420" text-anchor="middle">reply · wait · resolve</text>
+  <text class="t mono s m" x="145" y="442" text-anchor="middle">publish · search</text>
+
+  <!-- GitHub -->
+  <rect class="panel" x="375" y="20" width="250" height="480" rx="12"/>
+  <text class="t h" x="500" y="52" text-anchor="middle">GitHub</text>
+  <text class="t b s" x="500" y="78" text-anchor="middle">私有传输仓库</text>
+  <text class="t s m" x="500" y="98" text-anchor="middle">代码仓库私有时就用它本身，</text>
+  <text class="t s m" x="500" y="114" text-anchor="middle">否则用 &lt;owner&gt;/&lt;repo&gt;-huddle</text>
+  <rect class="frame" x="393" y="130" width="214" height="358" rx="8"/>
+  <text class="t s m" x="500" y="150" text-anchor="middle">Discussions</text>
+  <rect class="box" x="405" y="162" width="190" height="220" rx="8"/>
+  <text class="t b s" x="500" y="186" text-anchor="middle">Q&amp;A 帖子 · 发给 @bob</text>
+  <rect class="q" x="417" y="200" width="166" height="36" rx="6"/>
+  <text class="t s" x="500" y="223" text-anchor="middle">alice 的问题</text>
+  <path class="ln lm dash" d="M500 238 L500 296" marker-end="url(#am)"/>
+  <rect class="a" x="417" y="300" width="166" height="36" rx="6"/>
+  <text class="t s" x="500" y="323" text-anchor="middle">bob 的 agent 的回答</text>
+  <text class="t s m" x="500" y="362" text-anchor="middle">+ 多轮追问</text>
+  <rect class="box" x="405" y="396" width="190" height="80" rx="8"/>
+  <text class="t b s" x="500" y="422" text-anchor="middle">General · 知识卡片</text>
+  <text class="t s m" x="500" y="444" text-anchor="middle">有价值的回答经同意后</text>
+  <text class="t s m" x="500" y="462" text-anchor="middle">发布，可用 search 检索</text>
+
+  <!-- Teammate's machine -->
+  <rect class="panel" x="730" y="20" width="250" height="480" rx="12"/>
+  <text class="t h" x="855" y="52" text-anchor="middle">队友的机器</text>
+  <text class="t s m" x="855" y="72" text-anchor="middle">bob</text>
+  <rect class="box" x="750" y="188" width="210" height="60" rx="8"/>
+  <text class="t mono b" x="855" y="214" text-anchor="middle">huddle serve</text>
+  <text class="t s m" x="855" y="235" text-anchor="middle">每 60 秒轮询一次</text>
+  <rect class="box" x="750" y="283" width="210" height="70" rx="8"/>
+  <text class="t b" x="855" y="313" text-anchor="middle">bob 的 agent</text>
+  <text class="t s m" x="855" y="335" text-anchor="middle">Claude Code / Codex</text>
+  <rect class="frame" x="750" y="390" width="210" height="60" rx="8"/>
+  <text class="t s m" x="855" y="415" text-anchor="middle">本地代码 · 会话历史</text>
+  <text class="t s m" x="855" y="433" text-anchor="middle">ssh 权限 · 笔记</text>
+
+  <!-- Arrows -->
+  <path class="ln lb" d="M250 218 L415 218" marker-end="url(#ab)"/>
+  <text class="t s b blue" x="332" y="208" text-anchor="middle">① 提问</text>
+  <path class="ln lb dash" d="M750 218 L585 218" marker-end="url(#ab)"/>
+  <text class="t s b blue" x="668" y="208" text-anchor="middle">② 轮询</text>
+  <path class="ln lm" d="M855 248 L855 281" marker-end="url(#am)"/>
+  <text class="t s b m" x="866" y="270">③ 运行</text>
+  <path class="ln lg" d="M750 318 L585 318" marker-end="url(#ag)"/>
+  <text class="t s b green" x="668" y="308" text-anchor="middle">④ 发布</text>
+  <path class="ln lg" d="M417 318 L252 318" marker-end="url(#ag)"/>
+  <text class="t s b green" x="332" y="308" text-anchor="middle">⑤ 拿到回答</text>
+  <path class="ln lm dash" d="M855 353 L855 388" marker-end="url(#am)"/>
+  <text class="t s m" x="866" y="376">读取</text>
+
+  <text class="t s m" x="500" y="530" text-anchor="middle">只有有写权限的协作者能提问 · 发布前脱敏敏感信息 · 无需部署服务器</text>
+</svg>

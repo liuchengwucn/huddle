@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 550" width="1000" height="550" role="img" aria-label="How huddle works: your agent asks through a GitHub Discussion in a private repo; your teammate's huddle serve picks it up, runs their local agent and posts the answer back.">
+  <style>
+    .bg { fill: #ffffff; }
+    .panel { fill: #f6f8fa; stroke: #d0d7de; }
+    .box { fill: #ffffff; stroke: #d0d7de; }
+    .frame { fill: none; stroke: #d0d7de; stroke-dasharray: 5 4; }
+    .q { fill: #ddf4ff; stroke: #54aeff; }
+    .a { fill: #dafbe1; stroke: #4ac26b; }
+    .t { fill: #1f2328; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+    .h { font-size: 16px; font-weight: 600; }
+    .b { font-weight: 600; }
+    .s { font-size: 12px; }
+    .m { fill: #59636e; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    .blue { fill: #0969da; }
+    .green { fill: #1a7f37; }
+    .ln { fill: none; stroke-width: 2; }
+    .lb { stroke: #0969da; }
+    .lg { stroke: #1a7f37; }
+    .lm { stroke: #59636e; }
+    .dash { stroke-dasharray: 6 4; }
+    .hb { fill: #0969da; }
+    .hg { fill: #1a7f37; }
+    .hm { fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .panel { fill: #161b22; stroke: #30363d; }
+      .box { fill: #0d1117; stroke: #3d444d; }
+      .frame { stroke: #3d444d; }
+      .q { fill: #0c2d6b; stroke: #1f6feb; }
+      .a { fill: #04260f; stroke: #238636; }
+      .t { fill: #e6edf3; }
+      .m { fill: #9198a1; }
+      .blue { fill: #4493f8; }
+      .green { fill: #3fb950; }
+      .lb { stroke: #4493f8; }
+      .lg { stroke: #3fb950; }
+      .lm { stroke: #9198a1; }
+      .hb { fill: #4493f8; }
+      .hg { fill: #3fb950; }
+      .hm { fill: #9198a1; }
+    }
+  </style>
+  <defs>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hb" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hg" d="M0 0L10 5L0 10z"/></marker>
+    <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hm" d="M0 0L10 5L0 10z"/></marker>
+  </defs>
+
+  <rect class="bg" width="1000" height="550" rx="12"/>
+
+  <!-- Your machine -->
+  <rect class="panel" x="20" y="20" width="250" height="480" rx="12"/>
+  <text class="t h" x="145" y="52" text-anchor="middle">Your machine</text>
+  <text class="t s m" x="145" y="72" text-anchor="middle">alice</text>
+  <rect class="box" x="40" y="170" width="210" height="196" rx="8"/>
+  <text class="t b" x="145" y="205" text-anchor="middle">Your agent</text>
+  <text class="t s m" x="145" y="227" text-anchor="middle">Claude Code / Codex</text>
+  <rect class="panel" x="55" y="252" width="180" height="32" rx="6"/>
+  <text class="t mono" x="145" y="273" text-anchor="middle">huddle ask --to bob</text>
+  <text class="t s m" x="145" y="312" text-anchor="middle">waits for the reply;</text>
+  <text class="t s m" x="145" y="330" text-anchor="middle">the exit code is the outcome</text>
+  <text class="t mono s m" x="145" y="420" text-anchor="middle">reply · wait · resolve</text>
+  <text class="t mono s m" x="145" y="442" text-anchor="middle">publish · search</text>
+
+  <!-- GitHub -->
+  <rect class="panel" x="375" y="20" width="250" height="480" rx="12"/>
+  <text class="t h" x="500" y="52" text-anchor="middle">GitHub</text>
+  <text class="t b s" x="500" y="78" text-anchor="middle">Private transport repo</text>
+  <text class="t s m" x="500" y="98" text-anchor="middle">the code repo if it is private,</text>
+  <text class="t s m" x="500" y="114" text-anchor="middle">otherwise &lt;owner&gt;/&lt;repo&gt;-huddle</text>
+  <rect class="frame" x="393" y="130" width="214" height="358" rx="8"/>
+  <text class="t s m" x="500" y="150" text-anchor="middle">Discussions</text>
+  <rect class="box" x="405" y="162" width="190" height="220" rx="8"/>
+  <text class="t b s" x="500" y="186" text-anchor="middle">Q&amp;A thread · to @bob</text>
+  <rect class="q" x="417" y="200" width="166" height="36" rx="6"/>
+  <text class="t s" x="500" y="223" text-anchor="middle">Question from alice</text>
+  <path class="ln lm dash" d="M500 238 L500 296" marker-end="url(#am)"/>
+  <rect class="a" x="417" y="300" width="166" height="36" rx="6"/>
+  <text class="t s" x="500" y="323" text-anchor="middle">Answer by bob's agent</text>
+  <text class="t s m" x="500" y="362" text-anchor="middle">+ follow-up rounds</text>
+  <rect class="box" x="405" y="396" width="190" height="80" rx="8"/>
+  <text class="t b s" x="500" y="422" text-anchor="middle">General · knowledge cards</text>
+  <text class="t s m" x="500" y="444" text-anchor="middle">useful answers, published</text>
+  <text class="t s m" x="500" y="462" text-anchor="middle">with consent; found by search</text>
+
+  <!-- Teammate's machine -->
+  <rect class="panel" x="730" y="20" width="250" height="480" rx="12"/>
+  <text class="t h" x="855" y="52" text-anchor="middle">Teammate's machine</text>
+  <text class="t s m" x="855" y="72" text-anchor="middle">bob</text>
+  <rect class="box" x="750" y="188" width="210" height="60" rx="8"/>
+  <text class="t mono b" x="855" y="214" text-anchor="middle">huddle serve</text>
+  <text class="t s m" x="855" y="235" text-anchor="middle">polls every 60 s</text>
+  <rect class="box" x="750" y="283" width="210" height="70" rx="8"/>
+  <text class="t b" x="855" y="313" text-anchor="middle">Bob's agent</text>
+  <text class="t s m" x="855" y="335" text-anchor="middle">Claude Code / Codex</text>
+  <rect class="frame" x="750" y="390" width="210" height="60" rx="8"/>
+  <text class="t s m" x="855" y="415" text-anchor="middle">local code · session history</text>
+  <text class="t s m" x="855" y="433" text-anchor="middle">ssh access · notes</text>
+
+  <!-- Arrows -->
+  <path class="ln lb" d="M250 218 L415 218" marker-end="url(#ab)"/>
+  <text class="t s b blue" x="332" y="208" text-anchor="middle">① ask</text>
+  <path class="ln lb dash" d="M750 218 L585 218" marker-end="url(#ab)"/>
+  <text class="t s b blue" x="668" y="208" text-anchor="middle">② poll</text>
+  <path class="ln lm" d="M855 248 L855 281" marker-end="url(#am)"/>
+  <text class="t s b m" x="866" y="270">③ run</text>
+  <path class="ln lg" d="M750 318 L585 318" marker-end="url(#ag)"/>
+  <text class="t s b green" x="668" y="308" text-anchor="middle">④ post</text>
+  <path class="ln lg" d="M417 318 L252 318" marker-end="url(#ag)"/>
+  <text class="t s b green" x="332" y="308" text-anchor="middle">⑤ answer</text>
+  <path class="ln lm dash" d="M855 353 L855 388" marker-end="url(#am)"/>
+  <text class="t s m" x="866" y="376">reads</text>
+
+  <text class="t s m" x="500" y="530" text-anchor="middle">Only collaborators with write access can ask · secrets are redacted before posting · no server to run</text>
+</svg>
