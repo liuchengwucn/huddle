@@ -132,6 +132,28 @@ describe("respondOnce", () => {
     expect((await t.getThread(th2.number)).messages).toHaveLength(1);
   });
 
+  it("enforces the hourly limit across retries without posting", async () => {
+    const { t, deps, calls, setScript } = setup({ answers_per_hour: 1 });
+    const th = await askAlice(t);
+    setScript(() => ({ ...ok(answer()), stdout: "garbage" }));
+    await respondOnce(deps);
+    expect(calls).toHaveLength(1);
+    expect((await t.getThread(th.number)).messages).toHaveLength(1);
+  });
+
+  it("caps retries of a resumable session at the remaining budget", async () => {
+    const { t, deps, calls, dir, setScript } = setup({ answers_per_hour: 2 });
+    const th = await askAlice(t);
+    await appendAudit(
+      { time: new Date().toISOString(), threadId: th.id, threadUrl: th.url, re: "x", backend: "claude", invokedAgent: false, sessionId: "OLD", resumed: false, postedType: null, postedText: null, redactions: [], discardReason: null, durationMs: 0 },
+      dir,
+    );
+    setScript(() => fail);
+    await respondOnce(deps);
+    expect(calls).toHaveLength(2);
+    expect((await t.getThread(th.number)).messages).toHaveLength(1);
+  });
+
   it("falls back to a fresh session when resume fails", async () => {
     const { t, deps, calls, dir, setScript } = setup();
     const th = await askAlice(t);

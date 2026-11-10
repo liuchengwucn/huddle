@@ -116,11 +116,6 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
     return;
   }
 
-  if (hourlyInvocations(audit, now()) >= limits.answers_per_hour) {
-    log(`Hourly invocation limit of ${limits.answers_per_hour} reached; leaving #${t.number} for later.`);
-    return;
-  }
-
   const resumeId = findResumableSession(audit, t.id, deps.backend.name);
   const discarded = lastAttemptDiscarded(audit, t.id);
   const draftedPublic = deps.publicThread ?? false;
@@ -130,7 +125,14 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   const plan: (string | null)[] = resumeId ? [resumeId, null, null] : [null, null];
 
   let outcome: Outcome = { ok: false, failure: "error" };
+  let started = false;
   for (const sid of plan) {
+    // Checked before every attempt: write() keeps `audit` current, so retries and sibling threads in a round share the budget.
+    if (hourlyInvocations(audit, now()) >= limits.answers_per_hour) {
+      log(started ? `Hourly invocation limit reached; leaving #${t.number} for later.` : `Hourly invocation limit of ${limits.answers_per_hour} reached; leaving #${t.number} for later.`);
+      return;
+    }
+    started = true;
     const prompt = sid ? buildContinuationPrompt(ctx, p.unanswered, discarded) : buildInitialPrompt(ctx, t, p.unanswered);
     const r = await run({
       argv: deps.backend.argv({ resumeSessionId: sid }),

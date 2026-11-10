@@ -7,15 +7,17 @@ import { assertRefRepo } from "./refs.js";
 import type { Transport } from "./types.js";
 
 const COMMENT_FIELDS = `id url body createdAt author { login }`;
+// Replies made with the web "Reply" button are nested under their parent comment. Only the first 20 per comment are read (no reply pagination).
+const TOP_COMMENT_FIELDS = `${COMMENT_FIELDS} replies(first: 20) { nodes { ${COMMENT_FIELDS} } }`;
 const DISCUSSION_FIELDS = `
   id number url title body createdAt updatedAt closed
   author { login } category { name } answer { id }
   viewerCanUpdate viewerCanDelete
   repository { nameWithOwner }
-  comments(first: 50) { pageInfo { hasNextPage endCursor } nodes { ${COMMENT_FIELDS} } }
+  comments(first: 50) { pageInfo { hasNextPage endCursor } nodes { ${TOP_COMMENT_FIELDS} } }
 `;
 
-interface RawComment { id: string; url: string; body: string; createdAt: string; author: { login: string } | null }
+interface RawComment { id: string; url: string; body: string; createdAt: string; author: { login: string } | null; replies?: { nodes: RawComment[] } | null }
 interface RawDiscussion {
   id: string; number: number; url: string; title: string; body: string; createdAt: string; updatedAt: string; closed: boolean;
   author: { login: string } | null; category: { name: string }; answer: { id: string } | null;
@@ -112,20 +114,22 @@ export class GitHubDiscussions implements Transport {
     while (huddle && page.hasNextPage) {
       const more = await this.gh.graphql<{ node: { comments: RawDiscussion["comments"] } }>(
         `query($id: ID!, $after: String) { node(id: $id) { ... on Discussion {
-          comments(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${COMMENT_FIELDS} } } } } }`,
+          comments(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${TOP_COMMENT_FIELDS} } } } } }`,
         { id: d.id, after: page.endCursor },
       );
       if (!more.node?.comments) throw new HuddleError(`Failed to read comment pages of #${d.number}`);
       comments.push(...more.node.comments.nodes);
       page = more.node.comments.pageInfo;
     }
+    // Flatten nested replies and order chronologically (stable: a parent precedes same-timestamp replies).
+    const flat = comments.flatMap((c) => [c, ...(c.replies?.nodes ?? [])]).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
     return {
       id: d.id, number: d.number, url: d.url, title: d.title, category, author: d.author?.login ?? "ghost",
       closed: d.closed, answerId: d.answer?.id ?? null, updatedAt: new Date(d.updatedAt),
       viewerCanUpdate: d.viewerCanUpdate, viewerCanDelete: d.viewerCanDelete,
       messages: [
         this.toMessage(d.id, d.author?.login, d.createdAt, d.body, d.url),
-        ...comments.map((c) => this.toMessage(c.id, c.author?.login, c.createdAt, c.body, c.url)),
+        ...flat.map((c) => this.toMessage(c.id, c.author?.login, c.createdAt, c.body, c.url)),
       ],
     };
   }

@@ -71,3 +71,34 @@ describe("GitHubClient.rest", () => {
     expect(init.body).toBe('{"a":1}');
   });
 });
+
+describe("GitHubDiscussions nested replies", () => {
+  const cm = (n: number, at: string, replies: unknown[] = []) => ({
+    id: `C${n}`, url: `https://github.com/own/threads/discussions/1#discussioncomment-${n}`, body: `c${n}`, createdAt: at, author: { login: "x" }, replies: { nodes: replies },
+  });
+  const raw = {
+    id: "D1", number: 1, url: "https://github.com/own/threads/discussions/1", title: "t", body: "b", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", closed: false,
+    author: { login: "x" }, category: { name: DEFAULT_REPO_CONFIG.categories.ask }, answer: null, viewerCanUpdate: false, viewerCanDelete: false,
+    comments: {
+      pageInfo: { hasNextPage: false, endCursor: null },
+      nodes: [cm(2, "2026-01-01T00:01:00Z", [cm(3, "2026-01-01T00:02:00Z")]), cm(4, "2026-01-01T00:03:00Z")],
+    },
+  };
+  const make = () => {
+    const gh = { graphql: vi.fn(async () => ({ repository: { discussion: raw } })), rest: vi.fn() };
+    return { gh, d: new GitHubDiscussions(gh as unknown as GitHubClient, "own", "threads", DEFAULT_REPO_CONFIG, { owner: "own", repo: "code" }) };
+  };
+
+  it("flattens replies in chronological order and requests them", async () => {
+    const { gh, d } = make();
+    const t = await d.getThread(1);
+    expect(t.messages.map((m) => m.body)).toEqual(["b", "c2", "c3", "c4"]);
+    expect(JSON.stringify(gh.graphql.mock.calls[0])).toContain("replies(first: 20)");
+  });
+
+  it("locates a reply by its comment URL", async () => {
+    const { d } = make();
+    const r = await d.locateMessage("https://github.com/own/threads/discussions/1#discussioncomment-3");
+    expect(r.message.body).toBe("c3");
+  });
+});

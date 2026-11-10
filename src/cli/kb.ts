@@ -32,6 +32,10 @@ async function getCard(c: Ctx, ref: string): Promise<Thread> {
   return t;
 }
 
+function headCommit(root: string): string {
+  return execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+}
+
 export async function publish(
   c: Ctx,
   src: string,
@@ -43,7 +47,7 @@ export async function publish(
   const old = o.supersedes ? await getCard(c, o.supersedes) : null;
   if (old && !old.viewerCanUpdate) throw new HuddleError(`You do not have permission to edit card #${old.number}, so you cannot supersede it.`);
   const source = o.source ? (await c.transport.getThread(parseThreadRef(o.source, c.slug))).url : undefined;
-  const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: c.root, encoding: "utf8" }).trim();
+  const commit = headCommit(c.root);
   const meta: Meta = {
     type: "kb",
     ...(o.files.length ? { files: o.files } : {}),
@@ -73,7 +77,8 @@ export async function kbEdit(c: Ctx, ref: string, src: string): Promise<number> 
   if (!card.viewerCanUpdate) throw new HuddleError(`You do not have permission to edit card #${card.number} (author or repo maintainer required).`);
   const body = await readBody(src);
   if (!body.trim()) throw new HuddleError("Card body must not be empty");
-  await c.transport.updateThread(card, card.title, body, card.messages[0].meta ?? { type: "kb" });
+  const meta: Meta = { ...(card.messages[0].meta ?? { type: "kb" }), commit: headCommit(c.root) };
+  await c.transport.updateThread(card, card.title, body, meta);
   out(`Revised card #${card.number}: ${card.url}`);
   return 0;
 }

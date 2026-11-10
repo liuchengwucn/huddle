@@ -95,6 +95,18 @@ describe("kb edit / rm", () => {
     await expect(transport.getThread(1)).rejects.toThrow();
   });
 
+  it("refreshes the baseline commit on edit", async () => {
+    await publish(c, bodyFile("v1"), { title: "T", files: ["a.ts"] });
+    const first = git("rev-parse", "HEAD");
+    writeFileSync(path.join(dir, "a.ts"), "y\n");
+    git("commit", "-qam", "second");
+    const head = git("rev-parse", "HEAD");
+    expect(head).not.toBe(first);
+    await kbEdit(c, "1", bodyFile("v2"));
+    const meta = (await transport.getThread(1)).messages[0].meta;
+    expect(meta).toMatchObject({ type: "kb", files: ["a.ts"], commit: head });
+  });
+
   it("reports permission errors", async () => {
     await publish(c, bodyFile("v1"), { title: "T", files: [] });
     transport.canUpdate = false;
