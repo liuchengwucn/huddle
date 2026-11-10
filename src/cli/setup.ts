@@ -237,8 +237,21 @@ export async function init(opts: { repo?: string }): Promise<number> {
     }
   }
 
-  out(`\nCommit these files: git add ${SKILL_REL} AGENTS.md${state.configWritten ? " .huddle/config.yml" : ""} && git commit -m "Add huddle"`);
+  const addConfig = state.configWritten || hasUncommittedChanges(root, CONFIG_REL);
+  out(`\nCommit these files: git add ${SKILL_REL} AGENTS.md${addConfig ? ` ${CONFIG_REL}` : ""} && git commit -m "Add huddle"`);
   return failed ? 1 : 0;
+}
+
+const CONFIG_REL = ".huddle/config.yml";
+
+/** True when the file is untracked or modified (e.g. written by an earlier init run but never committed). */
+export function hasUncommittedChanges(root: string, rel: string): boolean {
+  try {
+    const s = execFileSync("git", ["status", "--porcelain", "--", rel], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return s.trim() !== "";
+  } catch {
+    return false;
+  }
 }
 
 export async function doctor(opts: { repo?: string }): Promise<number> {

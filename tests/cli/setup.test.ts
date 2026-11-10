@@ -1,10 +1,11 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { HuddleError } from "../../src/errors.js";
 import YAML from "yaml";
-import { agentsBlock, ensureTransportRepo, renderSkill, transportProblems, upsertBlock, type GhLike } from "../../src/cli/setup.js";
+import { agentsBlock, ensureTransportRepo, hasUncommittedChanges, renderSkill, transportProblems, upsertBlock, type GhLike } from "../../src/cli/setup.js";
 
 const template = readFileSync(new URL("../../skill/SKILL.md", import.meta.url), "utf8");
 
@@ -285,5 +286,22 @@ describe("transportProblems", () => {
   it("does not retry for existing repos", async () => {
     const p = await transportProblems(t(true, [["missing"], []]), cfg, "o/r", false, async () => { throw new Error("no"); });
     expect(p).toEqual(["missing"]);
+  });
+});
+
+describe("hasUncommittedChanges", () => {
+  it("reports an untracked config, but not a committed or missing one", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "huddle-cfg-"));
+    const git = (...a: string[]) => execFileSync("git", a, { cwd: root, stdio: "ignore" });
+    git("init", "-q");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "t");
+    expect(hasUncommittedChanges(root, ".huddle/config.yml")).toBe(false);
+    mkdirSync(path.join(root, ".huddle"));
+    writeFileSync(path.join(root, ".huddle", "config.yml"), "repo: o/r-huddle\n");
+    expect(hasUncommittedChanges(root, ".huddle/config.yml")).toBe(true);
+    git("add", ".");
+    git("commit", "-q", "-m", "c");
+    expect(hasUncommittedChanges(root, ".huddle/config.yml")).toBe(false);
   });
 });
