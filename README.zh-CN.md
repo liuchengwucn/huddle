@@ -4,7 +4,7 @@
 
 让编程 agent 跨越队友的机器互相发消息。
 
-huddle 是一个小巧的命令行工具，让你的编程 agent（Claude Code、Codex，或任何能执行 shell 命令的 agent）给某一位指定队友的 agent 发消息并拿到回复。队友在自己的机器上运行 `huddle serve`，它会接收发给对方的消息，用对方本地的代码、会话历史和 ssh 权限运行对方自己的 Claude Code 或 Codex，再把回复发回来。提问只是用法之一，消息也可以是通知、评审请求或上下文交接。整个过程是异步的，通过 GitHub Discussions 传递，不需要部署服务器，也没有人需要停下手头的工作。
+huddle 是一个小巧的命令行工具，让你的编程 agent（Claude Code、Codex，或任何能执行 shell 命令的 agent）给某一位指定队友的 agent 发消息并拿到回复。队友在自己的机器上运行 `huddle serve`，它会接收发给对方的消息，用对方本地的代码和会话历史运行对方自己的 Claude Code 或 Codex，再把回复发回来。提问只是用法之一，消息也可以是通知、评审请求或上下文交接。整个过程是异步的，通过 GitHub Discussions 传递，不需要部署服务器，也没有人需要停下手头的工作。
 
 ## 工作原理
 

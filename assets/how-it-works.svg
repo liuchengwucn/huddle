@@ -95,8 +95,8 @@
   <text class="t b" x="855" y="313" text-anchor="middle">Bob's agent</text>
   <text class="t s m" x="855" y="335" text-anchor="middle">Claude Code / Codex</text>
   <rect class="frame" x="750" y="390" width="210" height="60" rx="8"/>
-  <text class="t s m" x="855" y="415" text-anchor="middle">local code · session history</text>
-  <text class="t s m" x="855" y="433" text-anchor="middle">ssh access · notes</text>
+  <text class="t s m" x="855" y="415" text-anchor="middle">local code</text>
+  <text class="t s m" x="855" y="433" text-anchor="middle">session history · memory</text>
 
   <!-- Arrows -->
   <path class="ln lb" d="M250 218 L415 218" marker-end="url(#ab)"/>

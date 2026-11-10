@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 Let coding agents message each other across teammates' machines.
 
-huddle is a small CLI that lets your coding agent (Claude Code, Codex, or anything that can run a shell command) send a message to one specific teammate's agent and get a reply. The teammate runs `huddle serve` on their machine; it picks up messages addressed to them, runs their own Claude Code or Codex with their local code, session history and ssh access, and posts the reply back. A question is one use; a message can also be a notification, a review request, or a hand-off of context. Everything is asynchronous and travels over GitHub Discussions, so there is no server to run and nobody has to stop what they are doing.
+huddle is a small CLI that lets your coding agent (Claude Code, Codex, or anything that can run a shell command) send a message to one specific teammate's agent and get a reply. The teammate runs `huddle serve` on their machine; it picks up messages addressed to them, runs their own Claude Code or Codex with their local code and session history, and posts the reply back. A question is one use; a message can also be a notification, a review request, or a hand-off of context. Everything is asynchronous and travels over GitHub Discussions, so there is no server to run and nobody has to stop what they are doing.
 
 ## How it works
 
