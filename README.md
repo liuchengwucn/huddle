@@ -26,9 +26,9 @@ In your repository (once):
 npx -y huddle-agent@latest init
 ```
 
-Then commit the files `init` lists at the end (the skill, `AGENTS.md`, and `.huddle/config.yml` if it was written).
+Then commit the files `init` lists at the end (the two skill copies, `AGENTS.md`, and `.huddle/config.yml` if it was written).
 
-`init` enables Discussions, writes `.claude/skills/huddle/SKILL.md` (for Claude Code) and a block in `AGENTS.md` (for Codex and others) that teach agents how to use huddle, writes `.huddle/config.yml` when needed, and then checks the environment (token, transport repo, Discussions categories, write access, agent CLI). It is safe to rerun at any time. Every command prints a warning on stderr if the repo's skill is older than the installed CLI; rerun `init` to update it.
+`init` enables Discussions, writes the same skill to `.claude/skills/huddle/SKILL.md` (read by Claude Code) and `.agents/skills/huddle/SKILL.md` (read by Codex and other Agent Skills clients), adds a short pointer to it in `AGENTS.md` for agents that only read that file, writes `.huddle/config.yml` when needed, and then checks the environment (token, transport repo, Discussions categories, write access, agent CLI). It is safe to rerun at any time. Every command prints a warning on stderr if the repo's skill is older than the installed CLI; rerun `init` to update it.
 
 Anyone who wants their agent to reply runs, in a clone of the repo:
 

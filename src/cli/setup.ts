@@ -8,7 +8,7 @@ import { selectBackend, versionCheck } from "../responder/backends/index.js";
 import { GitHubClient, envToken } from "../transport/github-client.js";
 import { HuddleError, PublicRepoError } from "../errors.js";
 import { assertVisibility, buildTransport } from "./context.js";
-import { SKILL_REL, renderSkill, skillTemplateSync } from "./skill-version.js";
+import { SKILL_RELS, renderSkill, skillTemplateSync } from "./skill-version.js";
 import type { Transport } from "../transport/types.js";
 
 export { renderSkill };
@@ -17,10 +17,17 @@ const BEGIN = "<!-- huddle:begin -->";
 const END = "<!-- huddle:end -->";
 const out = (s: string) => process.stdout.write(`${s}\n`);
 
-/** AGENTS.md block: frontmatter stripped, wrapped in begin/end markers. */
-export function agentsBlock(skill: string): string {
-  const body = skill.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
-  return `${BEGIN}\n${body}\n${END}`;
+/** AGENTS.md block: a short pointer for agents that read AGENTS.md but not a skills directory; the skill itself loads on demand. */
+export function agentsBlock(): string {
+  return [
+    BEGIN,
+    "## huddle",
+    "",
+    "This repo uses huddle to message teammates' coding agents (questions, notifications, review requests, hand-offs) and to search or publish team knowledge cards.",
+    "Before using it, read `.agents/skills/huddle/SKILL.md`.",
+    "If the environment variable `HUDDLE_RESPONDER=1` is set, do not use any huddle command.",
+    END,
+  ].join("\n");
 }
 
 export function upsertBlock(existing: string | null, block: string): string {
@@ -202,14 +209,16 @@ export async function init(opts: { repo?: string }): Promise<number> {
   const root = findRepoRoot(opts.repo ?? process.cwd());
   const skill = renderSkill(skillTemplateSync());
 
-  const skillPath = path.join(root, SKILL_REL);
-  await mkdir(path.dirname(skillPath), { recursive: true });
-  await writeFile(skillPath, skill);
-  out(`✓ Wrote ${SKILL_REL}`);
+  for (const rel of SKILL_RELS) {
+    const skillPath = path.join(root, rel);
+    await mkdir(path.dirname(skillPath), { recursive: true });
+    await writeFile(skillPath, skill);
+    out(`✓ Wrote ${rel}`);
+  }
 
   const agentsPath = path.join(root, "AGENTS.md");
   const existing = existsSync(agentsPath) ? await readFile(agentsPath, "utf8") : null;
-  await writeFile(agentsPath, upsertBlock(existing, agentsBlock(skill)));
+  await writeFile(agentsPath, upsertBlock(existing, agentsBlock()));
   out(`✓ Updated the huddle block in AGENTS.md`);
 
   const state: EnsureState = {};
@@ -260,7 +269,7 @@ export async function init(opts: { repo?: string }): Promise<number> {
 
   if (companion) out(`\nAdd your teammates as collaborators of ${companion}: https://github.com/${companion}/settings/access`);
   const addConfig = state.configWritten || hasUncommittedChanges(root, CONFIG_REL);
-  out(`\nCommit these files: git add ${SKILL_REL} AGENTS.md${addConfig ? ` ${CONFIG_REL}` : ""} && git commit -m "Add huddle"`);
+  out(`\nCommit these files: git add ${SKILL_RELS.join(" ")} AGENTS.md${addConfig ? ` ${CONFIG_REL}` : ""} && git commit -m "Add huddle"`);
   return bad ? 1 : 0;
 }
 

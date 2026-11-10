@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { OUTDATED_MESSAGE, SKILL_REL, preActionWarning, compareVersions, outdatedSkillWarning, renderSkill, skillOutdated, skillTemplateSync } from "../../src/cli/skill-version.js";
+import { OUTDATED_MESSAGE, SKILL_RELS, preActionWarning, compareVersions, outdatedSkillWarning, renderSkill, skillOutdated, skillTemplateSync } from "../../src/cli/skill-version.js";
 
 const stamp = (v: string, body = "body") => `---\nname: huddle\n---\n<!-- huddle-skill-version: ${v} -->\n${body}\n`;
 
@@ -30,7 +30,7 @@ describe("outdatedSkillWarning", () => {
   it("warns for an old differing skill, not for missing or current", () => {
     const root = mkdtempSync(path.join(tmpdir(), "huddle-sv-"));
     expect(outdatedSkillWarning(root, "9.9.9")).toBeNull();
-    const file = path.join(root, SKILL_REL);
+    const file = path.join(root, SKILL_RELS[0]);
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, stamp("0.0.1", "ancient"));
     expect(outdatedSkillWarning(root, "9.9.9")).toBe(OUTDATED_MESSAGE);
@@ -38,6 +38,17 @@ describe("outdatedSkillWarning", () => {
     expect(outdatedSkillWarning(root, "9.9.9")).toBeNull();
     writeFileSync(file, renderSkill(skillTemplateSync(), "0.0.1"));
     expect(outdatedSkillWarning(root, "9.9.9")).toBeNull();
+  });
+
+  it("checks the .agents/skills copy too", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "huddle-sv-"));
+    for (const rel of SKILL_RELS) {
+      mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      writeFileSync(path.join(root, rel), renderSkill(skillTemplateSync(), "9.9.9"));
+    }
+    expect(outdatedSkillWarning(root, "9.9.9")).toBeNull();
+    writeFileSync(path.join(root, SKILL_RELS[1]), stamp("0.0.1", "ancient"));
+    expect(outdatedSkillWarning(root, "9.9.9")).toBe(OUTDATED_MESSAGE);
   });
 });
 

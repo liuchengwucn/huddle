@@ -26,9 +26,9 @@ huddle 是一个小巧的命令行工具，让你的编程 agent（Claude Code�
 npx -y huddle-agent@latest init
 ```
 
-然后提交 `init` 最后列出的文件（skill、`AGENTS.md`，以及写入了的话还有 `.huddle/config.yml`）。
+然后提交 `init` 最后列出的文件（两份 skill、`AGENTS.md`，以及写入了的话还有 `.huddle/config.yml`）。
 
-`init` 会开启 Discussions，写入 `.claude/skills/huddle/SKILL.md`（供 Claude Code 使用）和 `AGENTS.md` 中的一段说明（供 Codex 等使用），教 agent 如何使用 huddle；需要时写入 `.huddle/config.yml`；最后检查环境（token、传输仓库、Discussions 分类、写权限、agent CLI）。随时可以重复运行。如果仓库里的 skill 比当前 CLI 旧，每条命令都会在 stderr 打印警告；重新运行 `init` 即可更新。
+`init` 会开启 Discussions，把同一份 skill 写到 `.claude/skills/huddle/SKILL.md`（Claude Code 读这里）和 `.agents/skills/huddle/SKILL.md`（Codex 等支持 Agent Skills 的 agent 读这里），并在 `AGENTS.md` 里加一小段指引，照顾只读这个文件的 agent；需要时写入 `.huddle/config.yml`；最后检查环境（token、传输仓库、Discussions 分类、写权限、agent CLI）。随时可以重复运行。如果仓库里的 skill 比当前 CLI 旧，每条命令都会在 stderr 打印警告；重新运行 `init` 即可更新。
 
 想让自己的 agent 回复消息的人，在仓库的克隆里运行：
 

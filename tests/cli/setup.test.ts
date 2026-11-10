@@ -17,11 +17,13 @@ describe("setup", () => {
     expect(s).not.toContain("{{VERSION}}");
   });
 
-  it("builds AGENTS.md block without frontmatter", () => {
-    const b = agentsBlock(renderSkill(template, "1.0.0"));
-    expect(b.startsWith("<!-- huddle:begin -->\n<!-- huddle-skill-version: 1.0.0 -->")).toBe(true);
+  it("builds a short AGENTS.md pointer to the skill", () => {
+    const b = agentsBlock();
+    expect(b.startsWith("<!-- huddle:begin -->\n## huddle")).toBe(true);
     expect(b.endsWith("<!-- huddle:end -->")).toBe(true);
-    expect(b).not.toContain("name: huddle");
+    expect(b).toContain("`.agents/skills/huddle/SKILL.md`");
+    expect(b).toContain("HUDDLE_RESPONDER=1");
+    expect(b.split("\n").length).toBeLessThan(10);
   });
 
   it("upserts idempotently", () => {

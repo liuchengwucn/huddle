@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { VERSION } from "../version.js";
 
 export const VERSION_RE = /<!-- huddle-skill-version: ([^ ]+) -->/;
-export const SKILL_REL = path.join(".claude", "skills", "huddle", "SKILL.md");
+/** Claude Code reads only .claude/skills; Codex and other Agent Skills clients read .agents/skills. Both get the same file. */
+export const SKILL_RELS = [path.join(".claude", "skills", "huddle", "SKILL.md"), path.join(".agents", "skills", "huddle", "SKILL.md")];
 
 /** Numeric x.y.z comparison; prerelease suffixes ignored. */
 export function compareVersions(a: string, b: string): number {
@@ -42,10 +43,10 @@ export const OUTDATED_MESSAGE =
 /** Warning text when the installed project skill is outdated, else null. Never throws. */
 export function outdatedSkillWarning(root: string, cliVersion = VERSION): string | null {
   try {
-    const file = path.join(root, SKILL_REL);
-    if (!existsSync(file)) return null;
+    const files = SKILL_RELS.map((rel) => path.join(root, rel)).filter((f) => existsSync(f));
+    if (!files.length) return null;
     const bundled = renderSkill(skillTemplateSync(), cliVersion);
-    return skillOutdated(readFileSync(file, "utf8"), bundled, cliVersion) ? OUTDATED_MESSAGE : null;
+    return files.some((f) => skillOutdated(readFileSync(f, "utf8"), bundled, cliVersion)) ? OUTDATED_MESSAGE : null;
   } catch {
     return null;
   }
