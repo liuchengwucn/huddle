@@ -79,5 +79,7 @@ describe("conversation", () => {
     await t.createThread("messages", "q", "body", { type: "message" });
     expect(messageMeta(await t.getThread(2))).toBeNull();
     expect(classifyReply(await t.getThread(2))).toBeNull();
+    await t.createThread("cards", "q", "body", { type: "message", to: "alice" });
+    expect(messageMeta(await t.getThread(3))).toBeNull();
   });
 });

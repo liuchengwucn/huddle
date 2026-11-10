@@ -8,7 +8,7 @@ export const sameLogin = (a: string | null | undefined, b: string | null | undef
 /** The metadata of the opening message; null if the thread is not a huddle message thread. */
 export function messageMeta(t: Thread): Meta | null {
   const first = t.messages[0];
-  return first && sameLogin(first.author, t.author) && first.meta?.type === "message" && first.meta.to ? first.meta : null;
+  return t.category === "messages" && first && sameLogin(first.author, t.author) && first.meta?.type === "message" && first.meta.to ? first.meta : null;
 }
 
 export const responderOf = (t: Thread): string | null => messageMeta(t)?.to ?? null;

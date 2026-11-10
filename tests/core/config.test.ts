@@ -64,9 +64,12 @@ describe("config", () => {
     expect(parseMachineConfig({ limits: { rounds_per_thread: 3 } }).limits).toEqual({ ...DEFAULT_LIMITS, rounds_per_thread: 3 });
     expect(parseMachineConfig({ limits: null }).limits).toEqual(DEFAULT_LIMITS);
     expect(parseMachineConfig({ limits: { bogus: 1 } }).limits).toEqual(DEFAULT_LIMITS);
-    expect(() => parseMachineConfig({ limits: { replies_per_hour: -1 } })).toThrow("Config key limits.replies_per_hour must be a positive number");
-    expect(() => parseMachineConfig({ limits: { timeout_minutes: "10" } })).toThrow(/limits.timeout_minutes/);
+    expect(() => parseMachineConfig({ limits: { replies_per_hour: -1 } })).toThrow("Config key limits.replies_per_hour must be a positive integer");
+    expect(() => parseMachineConfig({ limits: { timeout_minutes: "10" } })).toThrow("Config key limits.timeout_minutes must be a positive number");
     expect(() => parseMachineConfig({ limits: [1] })).toThrow(/mapping/);
+    expect(() => parseMachineConfig({ limits: { rounds_per_thread: 2.5 } })).toThrow("Config key limits.rounds_per_thread must be a positive integer");
+    expect(() => parseMachineConfig({ limits: { replies_per_hour: 0.5 } })).toThrow(/replies_per_hour must be a positive integer/);
+    expect(parseMachineConfig({ limits: { timeout_minutes: 0.5 } }).limits.timeout_minutes).toBe(0.5);
     expect(parseMachineConfig(null).limits).not.toBe(DEFAULT_LIMITS);
   });
 });

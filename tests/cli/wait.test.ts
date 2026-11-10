@@ -38,7 +38,40 @@ describe("waitForReply", () => {
     };
     expect((await waitForReply(flaky(2), 1, 10, { ...clock(), pollMs: 1000 })).code).toBe(0);
     await expect(waitForReply(flaky(3), 1, 10, { ...clock(), pollMs: 1000 })).rejects.toThrow(/Run huddle wait 1 later/);
-    await expect(waitForReply(flaky(3), 1, undefined, { ...clock(), pollMs: 1000 })).rejects.toThrow(/Run huddle wait 1 later/);
+  });
+
+  it("tolerates more read failures when waiting without a limit", async () => {
+    const t = new FakeTransport("bob");
+    const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
+    await t.as("alice").reply(th, "because", { type: "reply", re: th.id });
+    const flaky = (n: number) => {
+      let left = n;
+      return Object.create(t, { getThread: { value: async (x: number) => { if (left-- > 0) throw new Error("net"); return t.getThread(x); } } }) as FakeTransport;
+    };
+    expect((await waitForReply(flaky(19), 1, undefined, { ...clock(), pollMs: 1000 })).code).toBe(0);
+    await expect(waitForReply(flaky(20), 1, undefined, { ...clock(), pollMs: 1000 })).rejects.toThrow(/Run huddle wait 1 later/);
+  });
+
+  it("ends with exit 3 when the thread is closed without a reply", async () => {
+    const t = new FakeTransport("bob");
+    t.writers.add("alice");
+    const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
+    t.as("alice").humanComment(th, "talk to me in person");
+    t.closeThread(th);
+    const c = clock();
+    const r = await waitForReply(t, 1, undefined, c);
+    expect(r.code).toBe(3);
+    expect(r.output).toContain("[huddle] Thread #1 was closed without a reply; the owner ended the conversation. Tell the user, or contact them directly.");
+    expect(r.output).toContain("talk to me in person");
+    expect(c.now()).toBe(0);
+  });
+
+  it("still returns a reply posted before the thread was closed", async () => {
+    const t = new FakeTransport("bob");
+    const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
+    await t.as("alice").reply(th, "because", { type: "reply", re: th.id });
+    t.closeThread(th);
+    expect((await waitForReply(t, 1, 0, clock())).code).toBe(0);
   });
 
   it("times out with exit 2 when the latest sender message has no reply", async () => {

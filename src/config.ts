@@ -96,7 +96,10 @@ export function parseMachineConfig(raw: Record<string, unknown> | null): Machine
     for (const k of Object.keys(DEFAULT_LIMITS) as (keyof Limits)[]) {
       const v = l[k];
       if (v === undefined) continue;
-      if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) throw new HuddleError(`Config key limits.${k} must be a positive number`);
+      const int = k !== "timeout_minutes";
+      if (typeof v !== "number" || !Number.isFinite(v) || v <= 0 || (int && !Number.isInteger(v))) {
+        throw new HuddleError(`Config key limits.${k} must be a positive ${int ? "integer" : "number"}`);
+      }
       cfg.limits[k] = v;
     }
   }

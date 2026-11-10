@@ -105,13 +105,19 @@ describe("search", () => {
     expect(output).not.toContain("foo closed");
   });
 
-  it("shows the date of the latest edit", async () => {
-    await publish(c, bodyFile("foo v1"), { title: "foo" });
-    await publish(c, bodyFile("foo v2"), { title: "foo", edit: "1" });
-    const updated = (await transport.getThread(1)).updatedAt.toISOString().slice(0, 10);
+  it("dates cards by their last edit, not by comments", async () => {
+    transport = new RestrictedTransport("alice", Date.parse("2026-11-01T23:59:58Z"));
+    transport.writers.add("alice");
+    c = { ...c, transport };
+    await publish(c, bodyFile("foo v1"), { title: "foo" }); // 2026-11-01T23:59:59
+    transport.humanComment(await transport.getThread(1), "thanks"); // 2026-11-02
     output = "";
     await search(c, "foo");
-    expect(output).toContain(`[Card #1] (updated ${updated}) foo`);
+    expect(output).toContain("[Card #1] (updated 2026-11-01) foo");
+    await publish(c, bodyFile("foo v2"), { title: "foo", edit: "1" });
+    output = "";
+    await search(c, "foo");
+    expect(output).toContain("[Card #1] (updated 2026-11-02) foo");
   });
 
   it("classifies cards, threads and plain discussions", async () => {

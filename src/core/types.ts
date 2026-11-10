@@ -27,7 +27,8 @@ export interface Thread {
   category: Category;
   author: string;
   closed: boolean;
-  updatedAt: Date;
+  updatedAt: Date;           // bumped by any activity, including comments
+  editedAt: Date;            // last edit of the opening post, else its creation
   messages: Message[];       // messages[0] is the opening message
   viewerCanUpdate: boolean;
 }

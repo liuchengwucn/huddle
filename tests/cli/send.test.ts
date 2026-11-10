@@ -32,7 +32,7 @@ describe("send helpers", () => {
     expect(parseSendArgs("hello", undefined, "alice")).toEqual({ message: "hello" });
     expect(parseSendArgs("12", "more", undefined)).toEqual({ ref: "12", message: "more" });
     expect(() => parseSendArgs("12", "more", "alice")).toThrow(/takes only the message.*Usage: huddle send/);
-    expect(() => parseSendArgs("hello", undefined, undefined)).toThrow(/Missing --to or thread.*Usage: huddle send/);
+    expect(() => parseSendArgs("hello", undefined, undefined)).toThrow(/Without --to, pass both <thread> and <message>.*Usage: huddle send/);
   });
 });
 
@@ -108,17 +108,20 @@ describe("waitCmd", () => {
     expect(out).toContain("because");
   });
 
-  it("without a thread, picks my newest thread still awaiting a reply", async () => {
+  it("without a thread, picks the thread whose awaited message I sent most recently", async () => {
     const t = new FakeTransport("bob", Date.now());
     const a = await t.createThread("messages", "a", "a?", { type: "message", to: "alice" });
     await t.createThread("messages", "b", "b?", { type: "message", to: "alice" });
     const c = await t.createThread("messages", "c", "c?", { type: "message", to: "alice" });
+    const e = await t.createThread("messages", "e", "e?", { type: "message", to: "alice" });
     await t.as("carol").createThread("messages", "d", "d?", { type: "message", to: "bob" });
     await t.as("alice").reply(c, "done", { type: "reply", re: c.id });
-    await t.as("bob").reply(a, "a again", { type: "message" }); // newest activity, but an older thread
-    expect(await waitCmd(mkCtx(t, "bob"), undefined, { wait: 0 })).toBe(2);
-    expect(err).toContain("[huddle] Waiting on #2 https://fake.test/discussions/2");
-    expect(out).toContain("thread #2");
+    await t.as("bob").reply(a, "a again", { type: "message" }); // older thread, newest sent message: wins
+    t.closeThread(e);
+    await t.as("alice").reply(a, "human-ish", { type: "message" }); // not mine: ignored
+    expect(await waitCmd(mkCtx(t.as("bob"), "bob"), undefined, { wait: 0 })).toBe(2);
+    expect(err).toContain("[huddle] Waiting on #1 https://fake.test/discussions/1");
+    expect(out).toContain("thread #1");
   });
 
   it("without a thread, errors when nothing is awaiting a reply", async () => {

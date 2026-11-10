@@ -50,7 +50,7 @@ export class FakeTransport implements Transport {
     const id = `D_${++this.seq}`;
     const url = `https://fake.test/discussions/${number}`;
     const t: Thread = {
-      id, number, url, title, category: cat, author: this.current, closed: false, updatedAt: at,
+      id, number, url, title, category: cat, author: this.current, closed: false, updatedAt: at, editedAt: at,
       messages: [{ id, author: this.current, createdAt: at, body: text, meta: structuredClone(meta), url }],
       viewerCanUpdate: true,
     };
@@ -106,7 +106,7 @@ export class FakeTransport implements Transport {
     const t = this.get(thread.number);
     t.title = title;
     t.messages[0] = { ...t.messages[0], body: text, meta: structuredClone(meta) };
-    t.updatedAt = this.tick();
+    t.updatedAt = t.editedAt = this.tick();
   }
 
   async search(query: string, cats: Category[], includeClosed: boolean): Promise<Thread[]> {

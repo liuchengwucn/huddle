@@ -91,7 +91,7 @@ export async function search(c: Ctx, query: string): Promise<number> {
   }
   for (const t of ordered) {
     if (cards.includes(t)) {
-      out(`[Card #${t.number}] (updated ${day(t.updatedAt)}) ${t.title}\n  ${t.url}\n  ${snippet(t.messages[0].body)}`);
+      out(`[Card #${t.number}] (updated ${day(t.editedAt)}) ${t.title}\n  ${t.url}\n  ${snippet(t.messages[0].body)}`);
     } else if (threads.includes(t)) {
       const to = messageMeta(t)?.to;
       const reply = t.messages.filter((m) => m.meta?.type === "reply" && sameLogin(m.author, to)).at(-1);

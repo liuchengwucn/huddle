@@ -36,6 +36,13 @@ export function timeoutResult(t: Thread): WaitResult {
   };
 }
 
+export function closedResult(t: Thread): WaitResult {
+  return {
+    code: 3,
+    output: `[huddle] Thread #${t.number} was closed without a reply; the owner ended the conversation. Tell the user, or contact them directly.`,
+  };
+}
+
 /** Note about human replies (comments without metadata); empty string if there are none. */
 export async function humanNote(t: Thread, after: Message, transport: Pick<Transport, "hasWriteAccess">): Promise<string> {
   const hs: Message[] = [];
@@ -56,12 +63,13 @@ export interface WaitOptions {
   now?: () => number;
 }
 
-/** Polls the thread until the sender's latest message gets a reply, or times out; `waitSec` undefined waits indefinitely. */
+/** Polls the thread until the sender's latest message gets a reply, the thread is closed, or the wait times out; `waitSec` undefined waits indefinitely (and tolerates more read failures). */
 export async function waitForReply(t: Transport, number: number, waitSec: number | undefined, o: WaitOptions = {}): Promise<WaitResult> {
   const now = o.now ?? Date.now;
   const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const pollMs = o.pollMs ?? 15_000;
   const deadline = waitSec === undefined ? Infinity : now() + waitSec * 1000;
+  const maxFailures = waitSec === undefined ? 20 : 3;
   let failures = 0;
   for (;;) {
     let thread: Thread;
@@ -70,7 +78,7 @@ export async function waitForReply(t: Transport, number: number, waitSec: number
       failures = 0;
     } catch (e) {
       const left = deadline - now();
-      if (++failures >= 3 || left <= 0) {
+      if (++failures >= maxFailures || left <= 0) {
         throw new HuddleError(`Reading thread #${number} failed repeatedly: ${(e as Error).message}. Run huddle wait ${number} later to keep waiting.`);
       }
       await sleep(Math.min(pollMs, left));
@@ -80,6 +88,10 @@ export async function waitForReply(t: Transport, number: number, waitSec: number
     if (!c) throw new HuddleError(`Thread #${number} is not a huddle message thread.`);
     if (c.reply) {
       const r = formatReply(thread, c.reply);
+      return { ...r, output: r.output + (await humanNote(thread, c.awaiting, t)) };
+    }
+    if (thread.closed) {
+      const r = closedResult(thread);
       return { ...r, output: r.output + (await humanNote(thread, c.awaiting, t)) };
     }
     const left = deadline - now();

@@ -57,6 +57,7 @@ describe("GitHubDiscussions", () => {
     const p = await stub("PRIVATE", [{ id: "2", name: "General" }]).d.checkSetup();
     expect(p).toHaveLength(1);
     expect(p[0]).toContain(`Missing Discussion category "Q&A"`);
+    expect(p[0]).toContain("any format except Announcement");
   });
 
   it("treats INTERNAL and PUBLIC as not private", async () => {

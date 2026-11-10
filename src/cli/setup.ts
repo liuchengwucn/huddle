@@ -8,9 +8,8 @@ import { selectBackend, versionCheck } from "../responder/backends/index.js";
 import { GitHubClient, envToken } from "../transport/github-client.js";
 import { HuddleError, PublicRepoError } from "../errors.js";
 import { assertVisibility, buildTransport } from "./context.js";
-import { SKILL_REL, VERSION_RE, renderSkill, skillOutdated, skillTemplateSync } from "./skill-version.js";
+import { SKILL_REL, renderSkill, skillTemplateSync } from "./skill-version.js";
 import type { Transport } from "../transport/types.js";
-import { VERSION } from "../version.js";
 
 export { renderSkill };
 
@@ -257,20 +256,6 @@ export async function init(opts: { repo?: string }): Promise<number> {
       `The output does not mention ${backend.name === "claude" ? "Claude Code" : "codex"}. command may point at a different program (e.g. a shell function cc resolves to the C compiler in a non-interactive environment); write an executable wrapper script and set command.`);
   } catch (e) {
     check(false, "Backend command", (e as Error).message);
-  }
-
-  const bundled = renderSkill(skillTemplateSync(), VERSION);
-  for (const [rel, label] of [[SKILL_REL, "skill"], ["AGENTS.md", "AGENTS.md block"]] as const) {
-    const file = path.join(root, rel);
-    const txt = existsSync(file) ? await readFile(file, "utf8") : "";
-    const v = VERSION_RE.exec(txt)?.[1];
-    check(!!v, `${label} exists`, 'run "npx -y huddle-agent@latest init" and commit');
-    if (v) {
-      // AGENTS.md holds only the body; compare against the matching bundled form
-      const ref = rel === "AGENTS.md" ? agentsBlock(bundled) : bundled;
-      const body = rel === "AGENTS.md" ? (txt.match(new RegExp(`${BEGIN}[\\s\\S]*?${END}`))?.[0] ?? txt) : txt;
-      check(!skillOutdated(body, ref, VERSION), `${label} is up to date (version ${v})`, 'run "npx -y huddle-agent@latest init" and commit');
-    }
   }
 
   if (companion) out(`\nAdd your teammates as collaborators of ${companion}: https://github.com/${companion}/settings/access`);

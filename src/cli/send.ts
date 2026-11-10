@@ -40,7 +40,7 @@ export function parseSendArgs(first: string, second: string | undefined, to: str
     if (second !== undefined) throw new HuddleError(`--to starts a new thread and takes only the message. ${SEND_USAGE}`);
     return { message: first };
   }
-  if (second === undefined) throw new HuddleError(`Missing --to or thread. ${SEND_USAGE}`);
+  if (second === undefined) throw new HuddleError(`Without --to, pass both <thread> and <message>. ${SEND_USAGE}`);
   return { ref: first, message: second };
 }
 
@@ -66,11 +66,18 @@ export async function followUp(c: Ctx, ref: string, message: string, o: { wait?:
   return emit(await waitForReply(c.transport, t.number, o.wait, w));
 }
 
-/** The newest open thread I started in the last 7 days whose latest message still awaits a reply. */
+/** Among open threads I started (updated in the last 7 days) whose latest message awaits a reply, the one with the most recently sent message. */
 async function latestAwaiting(c: Ctx): Promise<Thread> {
   const threads = await c.transport.listUpdatedThreads("messages", new Date(Date.now() - 7 * 86400_000));
-  const mine = threads.filter((t) => !t.closed && messageMeta(t) && sameLogin(t.author, c.me) && classifyReply(t)?.status === "pending");
-  const t = mine.sort((a, b) => b.messages[0].createdAt.getTime() - a.messages[0].createdAt.getTime())[0];
+  let best: { t: Thread; at: number } | null = null;
+  for (const t of threads) {
+    if (t.closed || !sameLogin(t.author, c.me)) continue;
+    const s = classifyReply(t);
+    if (s?.status !== "pending") continue;
+    const at = s.awaiting.createdAt.getTime();
+    if (!best || at > best.at) best = { t, at };
+  }
+  const t = best?.t;
   if (!t) throw new HuddleError("No thread of yours is awaiting a reply (last 7 days). Pass a thread number.");
   return t;
 }

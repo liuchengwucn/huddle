@@ -9,7 +9,7 @@ const COMMENT_FIELDS = `id url body createdAt author { login }`;
 // Replies made with the web "Reply" button are nested under their parent comment. Only the first 20 per comment are read (no reply pagination).
 const TOP_COMMENT_FIELDS = `${COMMENT_FIELDS} replies(first: 20) { nodes { ${COMMENT_FIELDS} } }`;
 const DISCUSSION_FIELDS = `
-  id number url title body createdAt updatedAt closed
+  id number url title body createdAt updatedAt lastEditedAt closed
   author { login } category { name }
   viewerCanUpdate
   repository { nameWithOwner }
@@ -18,7 +18,7 @@ const DISCUSSION_FIELDS = `
 
 interface RawComment { id: string; url: string; body: string; createdAt: string; author: { login: string } | null; replies?: { nodes: RawComment[] } | null }
 interface RawDiscussion {
-  id: string; number: number; url: string; title: string; body: string; createdAt: string; updatedAt: string; closed: boolean;
+  id: string; number: number; url: string; title: string; body: string; createdAt: string; updatedAt: string; lastEditedAt: string | null; closed: boolean;
   author: { login: string } | null; category: { name: string };
   viewerCanUpdate: boolean;
   repository?: { nameWithOwner: string };
@@ -77,7 +77,7 @@ export class GitHubDiscussions implements Transport {
     const problems: string[] = [];
     const url = `https://github.com/${this.owner}/${this.repo}/discussions/categories/new`;
     for (const name of [this.cfg.categories.messages, this.cfg.categories.cards]) {
-      if (!info.categories.some((c) => c.name === name)) problems.push(`Missing Discussion category "${name}": open ${url}, set the name to ${name}, and create it (any format works).`);
+      if (!info.categories.some((c) => c.name === name)) problems.push(`Missing Discussion category "${name}": open ${url}, set the name to ${name}, and create it (any format except Announcement, where only maintainers can post).`);
     }
     return problems;
   }
@@ -121,7 +121,7 @@ export class GitHubDiscussions implements Transport {
     const flat = comments.flatMap((c) => [c, ...(c.replies?.nodes ?? [])]).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
     return {
       id: d.id, number: d.number, url: d.url, title: d.title, category, author: d.author?.login ?? "ghost",
-      closed: d.closed, updatedAt: new Date(d.updatedAt), viewerCanUpdate: d.viewerCanUpdate,
+      closed: d.closed, updatedAt: new Date(d.updatedAt), editedAt: new Date(d.lastEditedAt ?? d.createdAt), viewerCanUpdate: d.viewerCanUpdate,
       messages: [
         this.toMessage(d.id, d.author?.login, d.createdAt, d.body, d.url),
         ...flat.map((c) => this.toMessage(c.id, c.author?.login, c.createdAt, c.body, c.url)),
