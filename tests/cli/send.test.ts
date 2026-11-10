@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_REPO_CONFIG, parseMachineConfig } from "../../src/config.js";
+import { signature } from "../../src/core/signature.js";
 import { FakeTransport } from "../../src/transport/fake.js";
 import type { Ctx } from "../../src/cli/context.js";
 import { followUp, makeTitle, parseSendArgs, send, waitCmd } from "../../src/cli/send.js";
@@ -46,6 +47,7 @@ describe("send", () => {
     expect(th.category).toBe("messages");
     expect(th.title).toBe("Heads-up: cache API changed");
     expect(th.messages[0].meta).toEqual({ type: "message", to: "alice" });
+    expect(th.messages[0].body).toBe("Heads-up: cache API changed\ndetails" + signature("Sent by bob's agent"));
     expect(err).toContain("[huddle] Sent to alice: #1 https://fake.test/discussions/1");
     expect(out).toContain("huddle wait 1");
   });
@@ -95,7 +97,9 @@ describe("followUp", () => {
     await t.as("alice").reply(th, "ans", { type: "reply", re: th.id });
     const code = await followUp(mkCtx(t.as("bob"), "bob"), String(th.number), "more", { wait: 0 });
     expect(code).toBe(2);
-    expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "message" });
+    const last = (await t.getThread(th.number)).messages.at(-1)!;
+    expect(last.meta).toEqual({ type: "message" });
+    expect(last.body).toBe("more" + signature("Sent by bob's agent"));
   });
 });
 

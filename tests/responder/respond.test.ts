@@ -1,5 +1,6 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { signature } from "../../src/core/signature.js";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LIMITS, DEFAULT_REPO_CONFIG, type Limits, type MachineConfig } from "../../src/config.js";
@@ -304,7 +305,7 @@ describe("respondOnce", () => {
     const msgs = (await t.getThread(th.number)).messages;
     expect(msgs).toHaveLength(2);
     expect(msgs[1].meta).toEqual({ type: "decline", re: th.id, reason: "refused" });
-    expect(msgs[1].body).toBe("@alice retracted the earlier automatic reply. If needed, contact @alice directly.");
+    expect(msgs[1].body).toBe("@alice retracted the earlier automatic reply. If needed, contact @alice directly." + signature("Posted automatically for alice"));
     expect((await readRecentAudit(1, new Date(), dir)).at(-1)).toMatchObject({ retraction: true, invokedAgent: false, postedType: "decline" });
     expect(logs).toContain(`Reply on #${th.number} was deleted by the owner; posted a retraction notice instead of answering again.`);
     await respondOnce(deps);

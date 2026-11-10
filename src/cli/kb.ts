@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
+import { signature, stripSignature } from "../core/signature.js";
 import type { Thread } from "../core/types.js";
 import { HuddleError } from "../errors.js";
 import { messageMeta, sameLogin } from "../core/conversation.js";
@@ -34,7 +35,7 @@ export async function publish(c: Ctx, src: string, o: { title: string; edit?: st
   assertNotResponder();
   const card = o.edit !== undefined ? await getCard(c, o.edit) : null;
   if (card && !card.viewerCanUpdate) throw new HuddleError(`You do not have permission to edit card #${card.number} (author or repo maintainer required).`);
-  const body = await readBody(src);
+  const body = stripSignature(await readBody(src));
   if (!body.trim()) throw new HuddleError("Card body must not be empty");
   if (!o.yes && src !== "-" && process.stdin.isTTY) {
     process.stderr.write(`\n# ${o.title}\n\n${body}\n\n`);
@@ -44,17 +45,17 @@ export async function publish(c: Ctx, src: string, o: { title: string; edit?: st
     }
   }
   if (card) {
-    await c.transport.updateThread(card, o.title, body, { type: "card" });
+    await c.transport.updateThread(card, o.title, body + signature(`Updated by ${c.me}`), { type: "card" });
     out(`Updated card #${card.number}: ${card.url}`);
     return 0;
   }
-  const t = await c.transport.createThread("cards", o.title, body, { type: "card" });
+  const t = await c.transport.createThread("cards", o.title, body + signature(`Published by ${c.me}`), { type: "card" });
   out(`Published card #${t.number}: ${t.url}`);
   return 0;
 }
 
 export function snippet(text: string, max = 200): string {
-  const s = text.replace(/\s+/g, " ").trim();
+  const s = stripSignature(text).replace(/\s+/g, " ").trim();
   return [...s].length > max ? `${[...s].slice(0, max).join("")}…` : s;
 }
 

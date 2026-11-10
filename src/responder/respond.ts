@@ -5,6 +5,7 @@ import { auditDir as defaultAuditDir } from "../core/paths.js";
 import { redact } from "../core/redact.js";
 import type { DeclineReason, Thread } from "../core/types.js";
 import { PublicRepoError } from "../errors.js";
+import { signature } from "../core/signature.js";
 import type { Transport } from "../transport/types.js";
 import type { Backend } from "./backends/types.js";
 import { decide, parseAgentOutput, type Decision } from "./output.js";
@@ -73,8 +74,8 @@ function warnCorrupted(t: Thread, log: (m: string) => void): void {
 
 function footer(d: Decision, me: string, backend: string): string {
   const src = d.sources.length ? `\nSources: ${d.sources.join(", ")}` : "";
-  if (d.type === "reply") return `\n\n---${src}\n— Replied automatically by ${me}'s agent (${backend})`;
-  return `\n\n---\n— ${me}'s agent (${backend}) cannot reply (${d.reason}); @${me} please confirm in person`;
+  if (d.type === "reply") return signature(`Replied automatically by ${me}'s agent (${backend})`, src);
+  return signature(`Declined automatically (${d.reason}) by ${me}'s agent (${backend})`, `\n@${me} please confirm in person.`);
 }
 
 type Outcome =
@@ -93,7 +94,8 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
     audit.push(e);
   };
 
-  const postDecline = async (thread: Thread, reason: DeclineReason, text: string, extra: Partial<AuditEntry> = {}) => {
+  const postDecline = async (thread: Thread, reason: DeclineReason, notice: string, extra: Partial<AuditEntry> = {}) => {
+    const text = notice + signature(`Posted automatically for ${deps.me}`);
     await deps.transport.reply(thread, text, { type: "decline", re: p.last.id, reason });
     await write({ ...base, time: now().toISOString(), invokedAgent: false, sessionId: null, resumed: false, postedType: "decline", postedText: text, redactions: [], discardReason: null, durationMs: 0, ...extra });
   };

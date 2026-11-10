@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { classifyReply, messageMeta, sameLogin } from "../core/conversation.js";
+import { signature } from "../core/signature.js";
 import { resolveRecipient } from "../core/recipient.js";
 import type { Thread } from "../core/types.js";
 import { HuddleError } from "../errors.js";
@@ -49,7 +50,7 @@ export async function send(c: Ctx, message: string, o: { to: string; wait?: numb
   if (!message.trim()) throw new HuddleError("Message must not be empty");
   const to = await resolveRecipient(c.transport, o.to, c.me, (e) => gitAuthorNames(c.root, e));
   publicNote(c);
-  const t = await c.transport.createThread("messages", makeTitle(message), message, { type: "message", to });
+  const t = await c.transport.createThread("messages", makeTitle(message), message + signature(`Sent by ${c.me}'s agent`), { type: "message", to });
   note(`Sent to ${to}: #${t.number} ${t.url}`);
   return emit(await waitForReply(c.transport, t.number, o.wait, w));
 }
@@ -62,7 +63,7 @@ export async function followUp(c: Ctx, ref: string, message: string, o: { wait?:
   if (!sameLogin(t.author, c.me)) throw new HuddleError(`Only the sender ${t.author} can follow up on thread #${t.number}.`);
   if (t.closed) throw new HuddleError(`Thread #${t.number} is closed; use huddle send --to to open a new thread.`);
   publicNote(c);
-  await c.transport.reply(t, message, { type: "message" });
+  await c.transport.reply(t, message + signature(`Sent by ${c.me}'s agent`), { type: "message" });
   return emit(await waitForReply(c.transport, t.number, o.wait, w));
 }
 

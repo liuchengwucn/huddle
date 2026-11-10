@@ -1,5 +1,6 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { signature } from "../../src/core/signature.js";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { publish, search, snippet } from "../../src/cli/kb.js";
@@ -61,7 +62,7 @@ describe("publish", () => {
     expect(await publish(c, bodyFile("v2"), { title: "T2", edit: "#1" })).toBe(0);
     const t = await transport.getThread(1);
     expect(t.title).toBe("T2");
-    expect(t.messages[0].body).toBe("v2");
+    expect(t.messages[0].body).toBe("v2" + signature("Updated by alice"));
     expect(t.messages[0].meta).toEqual({ type: "card" });
     expect(output).toContain("Updated card #1");
     await expect(transport.getThread(2)).rejects.toThrow();
@@ -71,7 +72,7 @@ describe("publish", () => {
     await publish(c, bodyFile("v1"), { title: "T" });
     transport.canUpdate = false;
     await expect(publish(c, bodyFile("v2"), { title: "T", edit: "1" })).rejects.toThrow(/do not have permission to edit card #1/);
-    expect((await transport.getThread(1)).messages[0].body).toBe("v1");
+    expect((await transport.getThread(1)).messages[0].body).toBe("v1" + signature("Published by alice"));
   });
 
   it("rejects --edit on message threads and plain threads", async () => {
