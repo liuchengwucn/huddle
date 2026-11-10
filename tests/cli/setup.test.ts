@@ -105,10 +105,9 @@ describe("ensureTransportRepo", () => {
     const r = await run(gh, root);
     expect(r).toMatchObject({ ok: true, configWritten: true });
     expect(posts(calls)).toEqual([
-      { method: "POST", path: "/user/repos", body: { name: "app-huddle", private: true, has_discussions: true, description: "huddle Q&A for me/app" } },
+      { method: "POST", path: "/user/repos", body: { name: "app-huddle", private: true, has_discussions: true, description: "huddle messages for me/app" } },
     ]);
     expect(cfgText(root)).toContain("repo: me/app-huddle\n");
-    expect(r.lines.join("\n")).toContain("https://github.com/me/app-huddle/settings/access");
   });
 
   it("uses the org endpoint for organizations", async () => {
@@ -118,7 +117,7 @@ describe("ensureTransportRepo", () => {
     expect(posts(calls)[0]).toEqual({
       method: "POST",
       path: "/orgs/acme/repos",
-      body: { name: "app-huddle", private: true, has_discussions: true, description: "huddle Q&A for acme/app" },
+      body: { name: "app-huddle", private: true, has_discussions: true, description: "huddle messages for acme/app" },
     });
   });
 
@@ -250,7 +249,7 @@ describe("ensureTransportRepo", () => {
 
   it("preserves comments when adding repo to an existing config", async () => {
     const { gh } = stub();
-    const root = mkroot("# keep me\nlimits:\n  x: 1 # inline\n");
+    const root = mkroot("# keep me\ncategories:\n  cards: Cards # inline\n");
     await run(gh, root);
     const t = cfgText(root);
     expect(t).toContain("# keep me");

@@ -2,14 +2,13 @@
 import { Command, InvalidArgumentError } from "commander";
 import { HuddleError } from "../errors.js";
 import { VERSION } from "../version.js";
-import * as asker from "./asker.js";
+import * as sender from "./send.js";
 import * as kb from "./kb.js";
 import * as responder from "./responder.js";
 import * as setup from "./setup.js";
 import { assertNotResponder, createContext } from "./context.js";
 import { preActionWarning } from "./skill-version.js";
 
-const list = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
 const seconds = (v: string) => {
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0) throw new InvalidArgumentError(`Invalid number of seconds: ${v}`);
@@ -45,102 +44,56 @@ export function action<A extends unknown[]>(fn: (...args: A) => Promise<number |
   };
 }
 
+const EXIT_CODES = "exit 0 reply / 2 timed out / 3 declined";
+
 program
-  .command("ask")
-  .description("Ask a teammate's agent a question and wait for the reply (exit 0 answered / 2 timed out / 3 cannot answer / 4 clarification requested)")
-  .requiredOption("--to <who>", "GitHub login or email")
-  .option("--files <list>", "related files, comma-separated", list, [] as string[])
-  .option("--wait <seconds>", "maximum seconds to wait", seconds, 540)
-  .argument("<question>")
-  .action(action(async (q: string, o: { to: string; files: string[]; wait: number }) => { assertNotResponder(); return asker.ask(await ctx(), q, o); }));
+  .command("send")
+  .description(`Send a message to a teammate's agent (--to: new thread; <thread>: follow-up) and wait for the reply (${EXIT_CODES})`)
+  .usage('[--to <who>] [--wait <seconds>] [thread] <message>')
+  .option("--to <who>", "GitHub login or email; starts a new thread")
+  .option("--wait <seconds>", "maximum seconds to wait (default: until a reply arrives)", seconds)
+  .argument("<thread|message>", "with --to: the message; without: the thread to follow up")
+  .argument("[message]", "the follow-up message (without --to)")
+  .action(action(async (first: string, second: string | undefined, o: { to?: string; wait?: number }) => {
+    assertNotResponder();
+    const a = sender.parseSendArgs(first, second, o.to);
+    const c = await ctx();
+    return a.ref === undefined ? sender.send(c, a.message, { to: o.to!, wait: o.wait }) : sender.followUp(c, a.ref, a.message, o);
+  }));
 
 program
   .command("wait")
-  .description("Keep waiting for a reply on an existing thread")
-  .argument("<thread>")
-  .option("--wait <seconds>", "maximum seconds to wait", seconds, 540)
-  .action(action(async (ref: string, o: { wait: number }) => asker.waitCmd(await ctx(), ref, o)));
-
-program
-  .command("reply")
-  .description("Follow up, add information or rephrase, and wait for the reply")
-  .argument("<thread>")
-  .argument("<text>")
-  .option("--wait <seconds>", "maximum seconds to wait", seconds, 540)
-  .action(action(async (ref: string, text: string, o: { wait: number }) => { assertNotResponder(); return asker.reply(await ctx(), ref, text, o); }));
-
-program
-  .command("resolve")
-  .description("Mark the latest answer as the accepted answer")
-  .argument("<thread>")
-  .action(action(async (ref: string) => { assertNotResponder(); return asker.resolve(await ctx(), ref); }));
-
-program
-  .command("inbox")
-  .description("Show questions I asked and questions addressed to me")
-  .action(action(async () => asker.inbox(await ctx())));
-
-program
-  .command("respond")
-  .description("Run one round: fetch questions addressed to me, answer each automatically, then exit")
-  .action(action(async () => { assertNotResponder(); return responder.respondCmd(await ctx()); }));
+  .description(`Keep waiting for a reply; without a thread, waits on your latest thread still awaiting one (${EXIT_CODES})`)
+  .argument("[thread]")
+  .option("--wait <seconds>", "maximum seconds to wait (default: until a reply arrives)", seconds)
+  .action(action(async (ref: string | undefined, o: { wait?: number }) => sender.waitCmd(await ctx(), ref, o)));
 
 program
   .command("serve")
-  .description("Run in the foreground and answer automatically every 60 seconds")
-  .action(action(async () => { assertNotResponder(); return responder.serveCmd(await ctx()); }));
-
-program.command("pause").description("Pause automatic answering on this machine").action(action(() => responder.pause()));
-program.command("resume").description("Resume automatic answering on this machine").action(action(() => responder.resume()));
-
-program
-  .command("retract")
-  .description("Delete one of your own replies")
-  .argument("<comment>", "comment URL or comment id")
-  .action(action(async (ref: string) => { assertNotResponder(); return responder.retract(await ctx(), ref); }));
+  .description("Run in the foreground and reply automatically to messages addressed to you, every 60 seconds")
+  .option("--once", "run one round, then exit")
+  .action(action(async (o: { once?: boolean }) => { assertNotResponder(); return responder.serveCmd(await ctx(), o); }));
 
 program
   .command("publish")
-  .description("Publish a knowledge card (the agent must get the user's consent first)")
+  .description("Publish a knowledge card, or replace one with --edit (the agent must get the user's consent first)")
   .requiredOption("--title <title>", "card title")
-  .option("--files <list>", "related files, comma-separated", list, [] as string[])
-  .option("--source <thread>", "source thread")
-  .option("--supersedes <card>", "old card being superseded")
+  .option("--edit <card>", "replace the title and body of an existing card")
   .option("--yes", "skip confirmation")
   .argument("<body>", "body file, or - to read from stdin")
-  .action(action(async (src: string, o: { title: string; files: string[]; source?: string; supersedes?: string; yes?: boolean }) => { assertNotResponder(); return kb.publish(await ctx(), src, o); }));
-
-const kbCmd = program.command("kb").description("Manage knowledge cards");
-kbCmd
-  .command("edit")
-  .description("Revise a card body in place")
-  .argument("<card>")
-  .argument("<body>", "body file, or - to read from stdin")
-  .action(action(async (ref: string, src: string) => kb.kbEdit(await ctx(), ref, src)));
-kbCmd
-  .command("rm")
-  .description("Delete a card")
-  .argument("<card>")
-  .option("--yes", "skip confirmation")
-  .action(action(async (ref: string, o: { yes?: boolean }) => kb.kbRm(await ctx(), ref, o)));
+  .action(action(async (src: string, o: { title: string; edit?: string; yes?: boolean }) => { assertNotResponder(); return kb.publish(await ctx(), src, o); }));
 
 program
   .command("search")
-  .description("Search knowledge cards and past Q&A")
+  .description("Search knowledge cards and past threads")
   .argument("<query>")
   .action(action(async (q: string) => kb.search(await ctx(), q)));
 
 program
   .command("init")
-  .description("Install the skill, AGENTS.md block and repo config in this repo, and check the GitHub setup")
+  .description("Set up this repo (skill, AGENTS.md block, repo config, Discussions) and check the environment")
   .action(action(() => setup.init({ repo: program.opts().repo })));
-
-program
-  .command("doctor")
-  .description("Check the environment and suggest fixes")
-  .action(action(() => setup.doctor({ repo: program.opts().repo })));
 
 export { program };
 
-// later tasks register more commands before this point
 program.parseAsync(process.argv).catch(handleError);

@@ -4,7 +4,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 import { findRepoRoot, loadMachineConfig, loadRepoConfig, type RepoConfig } from "../config.js";
-import { isPaused, pausedFile } from "../core/paths.js";
 import { selectBackend, versionCheck } from "../responder/backends/index.js";
 import { GitHubClient, envToken } from "../transport/github-client.js";
 import { HuddleError, PublicRepoError } from "../errors.js";
@@ -122,7 +121,7 @@ export async function ensureTransportRepo(
         name,
         private: true,
         has_discussions: true,
-        description: `huddle Q&A for ${code.owner}/${code.repo}`,
+        description: `huddle messages for ${code.owner}/${code.repo}`,
       });
       if (res.status === 201) {
         write(`✓ Created private companion repository ${sidecar}`);
@@ -147,7 +146,6 @@ export async function ensureTransportRepo(
       configWritten = true;
       state.configWritten = true;
       slug = sidecar;
-      write(`  Add your teammates as collaborators (write access) on ${sidecar}: https://github.com/${sidecar}/settings/access`);
     }
   }
 
@@ -197,6 +195,11 @@ export async function transportProblems(
 }
 
 export async function init(opts: { repo?: string }): Promise<number> {
+  let bad = 0;
+  const check = (ok: boolean, label: string, hint = "") => {
+    out(`${ok ? "✓" : "✗"} ${label}${!ok && hint ? `\n    → ${hint}` : ""}`);
+    if (!ok) bad++;
+  };
   const root = findRepoRoot(opts.repo ?? process.cwd());
   const skill = renderSkill(skillTemplateSync());
 
@@ -210,87 +213,37 @@ export async function init(opts: { repo?: string }): Promise<number> {
   await writeFile(agentsPath, upsertBlock(existing, agentsBlock(skill)));
   out(`✓ Updated the huddle block in AGENTS.md`);
 
-  let failed = false;
   const state: EnsureState = {};
-  if (!tokenAvailable()) {
-    out("✗ No GitHub token: set GH_TOKEN (or GITHUB_TOKEN), or install the GitHub CLI (https://cli.github.com) and run gh auth login.");
-    failed = true;
-  } else {
+  let companion: string | null = null;
+  const hasToken = tokenAvailable();
+  check(hasToken, "GitHub token available", "set GH_TOKEN (or GITHUB_TOKEN), or install the GitHub CLI (https://cli.github.com) and run gh auth login");
+  if (hasToken) {
+    let slug = "the transport repo";
     try {
       const client = new GitHubClient();
       const me = (await client.graphql<{ viewer: { login: string } }>("query { viewer { login } }")).viewer.login;
       // buildTransport falls back to the transport repo as code repo when origin is unusable and repo: is set
       const { code } = buildTransport(root, await loadRepoConfig(root));
       const r = await ensureTransportRepo(client, root, code, me, out, state);
-      if (!r.ok) failed = true;
+      if (!r.ok) bad++;
       else {
         const cfg = await loadRepoConfig(root);
-        const { transport, slug } = buildTransport(root, cfg);
-        const problems = await transportProblems(transport, cfg, slug, !!state.fresh);
-        for (const p of problems) out(`✗ ${p}`);
-        if (problems.length) failed = true;
-        else out("✓ GitHub login, repository and Discussion categories look good");
-      }
-    } catch (e) {
-      out(`✗ ${(e as Error).message}`);
-      failed = true;
-    }
-  }
-
-  const addConfig = state.configWritten || hasUncommittedChanges(root, CONFIG_REL);
-  out(`\nCommit these files: git add ${SKILL_REL} AGENTS.md${addConfig ? ` ${CONFIG_REL}` : ""} && git commit -m "Add huddle"`);
-  return failed ? 1 : 0;
-}
-
-const CONFIG_REL = ".huddle/config.yml";
-
-/** True when the file is untracked or modified (e.g. written by an earlier init run but never committed). */
-export function hasUncommittedChanges(root: string, rel: string): boolean {
-  try {
-    const s = execFileSync("git", ["status", "--porcelain", "--", rel], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-    return s.trim() !== "";
-  } catch {
-    return false;
-  }
-}
-
-export async function doctor(opts: { repo?: string }): Promise<number> {
-  let bad = 0;
-  const check = (ok: boolean, label: string, hint = "") => {
-    out(`${ok ? "✓" : "✗"} ${label}${!ok && hint ? `\n    → ${hint}` : ""}`);
-    if (!ok) bad++;
-  };
-  const root = findRepoRoot(opts.repo ?? process.cwd());
-
-  const hasToken = tokenAvailable();
-  check(hasToken, "GitHub token available", "set GH_TOKEN (or GITHUB_TOKEN), or install the GitHub CLI and run gh auth login");
-  if (hasToken) {
-    let slug = "the transport repo";
-    try {
-      const cfg = await loadRepoConfig(root);
-      const built = buildTransport(root, cfg);
-      const t = built.transport;
-      slug = built.slug;
-      let reachable = false;
-      try {
-        await t.isPrivate(true);
-        reachable = true;
-      } catch (e) {
-        check(false, `${slug} is reachable`, (e as Error).message);
-      }
-      if (reachable) {
-        check(true, `${slug} is reachable`);
+        const built = buildTransport(root, cfg);
+        slug = built.slug;
+        if (slug.toLowerCase() !== `${code.owner}/${code.repo}`.toLowerCase()) companion = slug;
+        let reachable = false;
         try {
-          await assertVisibility(t, cfg, slug, true);
-          check(true, `${slug} visibility is allowed`);
+          await built.transport.isPrivate(true);
+          reachable = true;
         } catch (e) {
-          if (!(e instanceof PublicRepoError)) throw e;
-          check(false, `${slug} visibility is allowed`, e.message);
+          check(false, `${slug} is reachable`, (e as Error).message);
         }
-        const problems = await t.checkSetup();
-        check(problems.length === 0, `${slug} Discussions enabled and categories complete`, problems.join("\n    → "));
-        const me = (await t.whoami()).login;
-        check(await t.hasWriteAccess(me), `${me} has write access to ${slug}`, "ask a repo admin to add you as a collaborator (write or higher)");
+        if (reachable) {
+          check(true, `${slug} is reachable`);
+          const problems = await transportProblems(built.transport, cfg, slug, !!state.fresh);
+          check(problems.length === 0, `${slug} visibility allowed, Discussions enabled and categories complete`, problems.join("\n    → "));
+          check(await built.transport.hasWriteAccess(me), `${me} has write access to ${slug}`, "ask a repo admin to add you as a collaborator (write or higher)");
+        }
       }
     } catch (e) {
       check(false, `GitHub access to ${slug}`, (e as Error).message);
@@ -320,6 +273,20 @@ export async function doctor(opts: { repo?: string }): Promise<number> {
     }
   }
 
-  check(!isPaused(), "Auto-responding is not paused", `run huddle resume (or delete ${pausedFile()})`);
+  if (companion) out(`\nAdd your teammates as collaborators of ${companion}: https://github.com/${companion}/settings/access`);
+  const addConfig = state.configWritten || hasUncommittedChanges(root, CONFIG_REL);
+  out(`\nCommit these files: git add ${SKILL_REL} AGENTS.md${addConfig ? ` ${CONFIG_REL}` : ""} && git commit -m "Add huddle"`);
   return bad ? 1 : 0;
+}
+
+const CONFIG_REL = ".huddle/config.yml";
+
+/** True when the file is untracked or modified (e.g. written by an earlier init run but never committed). */
+export function hasUncommittedChanges(root: string, rel: string): boolean {
+  try {
+    const s = execFileSync("git", ["status", "--porcelain", "--", rel], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return s.trim() !== "";
+  } catch {
+    return false;
+  }
 }

@@ -4,6 +4,8 @@ import { auditDir } from "./paths.js";
 import type { MsgType } from "./types.js";
 import type { RedactionHit } from "./redact.js";
 
+export type DiscardReason = "new_followup" | "no_longer_pending" | "post_error" | "repo_public";
+
 export interface AuditEntry {
   time: string;
   threadId: string;
@@ -19,7 +21,7 @@ export interface AuditEntry {
   postedType: MsgType | null;
   postedText: string | null;
   redactions: RedactionHit[];
-  discardReason: string | null;
+  discardReason: DiscardReason | null;
   durationMs: number;
   error?: string;
 }

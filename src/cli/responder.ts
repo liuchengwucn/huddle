@@ -1,6 +1,3 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { askMeta, lastAskerMessage, sameLogin } from "../core/conversation.js";
-import { huddleHome, pausedFile } from "../core/paths.js";
 import { HuddleError } from "../errors.js";
 import { selectBackend, versionCheck } from "../responder/backends/index.js";
 import { respondOnce, serve, type RespondDeps } from "../responder/respond.js";
@@ -30,56 +27,19 @@ function installSignalHandlers(): void {
   }
 }
 
-export async function respondCmd(c: Ctx): Promise<number> {
-  assertNotResponder();
-  installSignalHandlers();
-  await respondOnce(makeDeps(c));
-  return 0;
-}
-
-export async function serveCmd(c: Ctx): Promise<number> {
+export async function serveCmd(c: Ctx, o: { once?: boolean } = {}): Promise<number> {
   assertNotResponder();
   const deps = makeDeps(c);
+  if (o.once) {
+    installSignalHandlers();
+    await respondOnce(deps);
+    return 0;
+  }
   const v = versionCheck(deps.backend);
   if (!v.ok) {
-    throw new HuddleError(`Backend command ${deps.backend.command.join(" ")} is unavailable (${v.output.slice(0, 200)}); run huddle doctor.`);
+    throw new HuddleError(`Backend command ${deps.backend.command.join(" ")} is unavailable (${v.output.slice(0, 200)}); run huddle init to check the setup.`);
   }
   installSignalHandlers();
   await serve(deps);
-  return 0;
-}
-
-export async function pause(): Promise<number> {
-  await mkdir(huddleHome(), { recursive: true });
-  await writeFile(pausedFile(), new Date().toISOString());
-  process.stdout.write(`Auto-responding paused (${pausedFile()}). Run huddle resume to resume.\n`);
-  return 0;
-}
-
-export async function resume(): Promise<number> {
-  await rm(pausedFile(), { force: true });
-  process.stdout.write("Auto-responding resumed.\n");
-  return 0;
-}
-
-export async function retract(c: Ctx, ref: string): Promise<number> {
-  assertNotResponder();
-  const { thread, message } = await c.transport.locateMessage(ref);
-  if (message.id === thread.id) throw new HuddleError("Only comments can be retracted, not a whole thread.");
-  if (!sameLogin(message.author, c.me)) throw new HuddleError("You can only retract replies you posted yourself.");
-  const type = message.meta?.type;
-  if (!askMeta(thread) || (type !== "answer" && type !== "clarify" && type !== "decline")) throw new HuddleError(`${ref} is not a huddle reply.`);
-  const re = message.meta?.re;
-  // Post the replacement decline first, then delete the original reply: if posting fails, the thread does not become eligible for re-answering.
-  if ((type === "answer" || type === "clarify") && re && !thread.closed && lastAskerMessage(thread)?.id === re) {
-    await c.transport.reply(thread, `@${c.me} retracted the earlier automatic reply. If needed, contact @${c.me} directly.`, {
-      type: "decline",
-      re,
-      reason: "refused",
-    });
-  }
-  await c.transport.deleteMessage(message.id);
-  process.stdout.write(`Retracted ${message.url}\n`);
-  if (type === "decline") process.stdout.write("Note: this thread will be answered automatically again on the next huddle serve / respond round.\n");
   return 0;
 }

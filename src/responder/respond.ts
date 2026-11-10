@@ -1,7 +1,7 @@
 import type { MachineConfig, RepoConfig } from "../config.js";
 import { appendAudit, findResumableSession, hourlyInvocations, lastAttemptDiscarded, readRecentAudit, type AuditEntry } from "../core/audit.js";
 import { pendingFor, threadRoundsUsed, type Pending } from "../core/pending.js";
-import { isPaused as defaultIsPaused, auditDir as defaultAuditDir } from "../core/paths.js";
+import { auditDir as defaultAuditDir } from "../core/paths.js";
 import { redact } from "../core/redact.js";
 import type { DeclineReason, Thread } from "../core/types.js";
 import { PublicRepoError } from "../errors.js";
@@ -20,7 +20,6 @@ export interface RespondDeps {
   cwd: string;
   run?: (spec: RunSpec) => Promise<RunResult>;
   now?: () => Date;
-  isPaused?: () => boolean;
   log?: (msg: string) => void;
   auditDir?: string;
   /** Runs before every serve round; a rejection ends serve. */
@@ -30,23 +29,17 @@ export interface RespondDeps {
 
 const POST_ERROR_BACKOFF_MS = 10 * 60_000;
 const MAX_POST = 60_000;
-const TRUNCATED_NOTE = "…(answer truncated; the full text is in the owner's local audit log)";
+const TRUNCATED_NOTE = "…(reply truncated; the full text is in the owner's local audit log)";
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function respondOnce(deps: RespondDeps): Promise<void> {
   const log = deps.log ?? ((m: string) => process.stderr.write(`[huddle] ${m}\n`));
-  const paused = deps.isPaused ?? defaultIsPaused;
   const now = deps.now ?? (() => new Date());
-  if (paused()) {
-    log("Paused; skipping this round.");
-    return;
-  }
   const since = new Date(now().getTime() - 7 * 86400_000);
-  const threads = await deps.transport.listUpdatedThreads("ask", since);
+  const threads = await deps.transport.listUpdatedThreads("messages", since);
   threads.sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
   const audit = await readRecentAudit(7, now(), deps.auditDir ?? defaultAuditDir());
   for (const t of threads) {
-    if (paused()) return;
     warnCorrupted(t, log);
     const p = pendingFor(t, deps.me);
     if (!p) continue;
@@ -54,11 +47,11 @@ export async function respondOnce(deps: RespondDeps): Promise<void> {
       if (!(await deps.transport.hasWriteAccess(t.author))) {
         if (!warnedNoWrite.has(t.number)) {
           warnedNoWrite.add(t.number);
-          log(`Asker ${t.author} of #${t.number} has no write access; ignoring.`);
+          log(`Sender ${t.author} of #${t.number} has no write access; ignoring.`);
         }
         continue;
       }
-      await handleThread(deps, t, p, log, paused, audit);
+      await handleThread(deps, t, p, log, audit);
     } catch (e) {
       if (e instanceof PublicRepoError) throw e;
       log(`Failed to process #${t.number}: ${errMsg(e)}`);
@@ -79,20 +72,19 @@ function warnCorrupted(t: Thread, log: (m: string) => void): void {
 
 function footer(d: Decision, me: string, backend: string): string {
   const src = d.sources.length ? `\nSources: ${d.sources.join(", ")}` : "";
-  if (d.type === "answer") return `\n\n---${src}\n— Answered automatically by ${me}'s agent (${backend})`;
-  if (d.type === "clarify") return `\n\n---\n— ${me}'s agent (${backend}) needs more information from you; reply with huddle reply`;
-  return `\n\n---\n— ${me}'s agent (${backend}) cannot answer (${d.reason}); @${me} please confirm in person`;
+  if (d.type === "reply") return `\n\n---${src}\n— Replied automatically by ${me}'s agent (${backend})`;
+  return `\n\n---\n— ${me}'s agent (${backend}) cannot reply (${d.reason}); @${me} please confirm in person`;
 }
 
 type Outcome =
   | { ok: true; decision: Decision; sessionId: string | null; entry: AuditEntry }
   | { ok: false; failure: "timeout" | "error" };
 
-async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: string) => void, paused: () => boolean, audit: AuditEntry[]): Promise<void> {
+async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: string) => void, audit: AuditEntry[]): Promise<void> {
   const now = deps.now ?? (() => new Date());
   const dir = deps.auditDir ?? defaultAuditDir();
   const run = deps.run ?? runProcess;
-  const { limits } = deps.repo;
+  const { limits } = deps.machine;
   const base = { threadId: t.id, threadUrl: t.url, re: p.last.id, backend: deps.backend.name };
 
   const write = async (e: AuditEntry) => {
@@ -106,13 +98,13 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   };
 
   if (threadRoundsUsed(t, deps.me) >= limits.rounds_per_thread) {
-    await postDecline(t, "rate_limited", `This thread has reached the automatic-answer limit of ${limits.rounds_per_thread} rounds; @${deps.me} will handle it personally.`);
+    await postDecline(t, "rate_limited", `This thread has reached the automatic-reply limit of ${limits.rounds_per_thread} rounds; @${deps.me} will handle it personally.`);
     return;
   }
 
   const lastForRe = audit.filter((e) => e.threadId === t.id && e.re === p.last.id).at(-1);
   if (lastForRe?.discardReason === "post_error" && now().getTime() - Date.parse(lastForRe.time) < POST_ERROR_BACKOFF_MS) {
-    log(`Publishing to #${t.number} failed recently; will retry later.`);
+    log(`Posting to #${t.number} failed recently; will retry later.`);
     return;
   }
 
@@ -120,7 +112,7 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   const discarded = lastAttemptDiscarded(audit, t.id);
   const draftedPublic = deps.publicThread ?? false;
   const ctx: PromptContext = {
-    owner: deps.me, asker: t.author, threadUrl: t.url, threadNumber: t.number, extraDirs: deps.machine.extra_context_dirs, publicThread: draftedPublic,
+    owner: deps.me, sender: t.author, threadUrl: t.url, threadNumber: t.number, publicThread: draftedPublic,
   };
   const plan: (string | null)[] = resumeId ? [resumeId, null, null] : [null, null];
 
@@ -128,8 +120,8 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   let started = false;
   for (const sid of plan) {
     // Checked before every attempt: write() keeps `audit` current, so retries and sibling threads in a round share the budget.
-    if (hourlyInvocations(audit, now()) >= limits.answers_per_hour) {
-      log(started ? `Hourly invocation limit reached; leaving #${t.number} for later.` : `Hourly invocation limit of ${limits.answers_per_hour} reached; leaving #${t.number} for later.`);
+    if (hourlyInvocations(audit, now()) >= limits.replies_per_hour) {
+      log(started ? `Hourly invocation limit reached; leaving #${t.number} for later.` : `Hourly invocation limit of ${limits.replies_per_hour} reached; leaving #${t.number} for later.`);
       return;
     }
     started = true;
@@ -138,7 +130,7 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
       argv: deps.backend.argv({ resumeSessionId: sid }),
       stdin: prompt,
       cwd: deps.cwd,
-      timeoutMs: limits.responder_timeout_minutes * 60_000,
+      timeoutMs: limits.timeout_minutes * 60_000,
     });
     const entry: AuditEntry = {
       ...base, time: now().toISOString(), invokedAgent: true, sessionId: null, resumed: sid !== null, prompt,
@@ -184,14 +176,13 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
     return;
   }
   const p2 = pendingFor(fresh, deps.me);
-  const isPausedNow = paused();
-  const stillSame = !isPausedNow && p2 !== null && p2.last.id === p.last.id;
+  const stillSame = p2 !== null && p2.last.id === p.last.id;
 
   if (!outcome.ok) {
     if (!stillSame) return;
     const text =
       outcome.failure === "timeout"
-        ? `Could not answer within ${limits.responder_timeout_minutes} minutes; @${deps.me} needs to handle this personally.`
+        ? `Could not reply within ${limits.timeout_minutes} minutes; @${deps.me} needs to handle this personally.`
         : `The responder agent failed; @${deps.me} needs to handle this personally.`;
     await postDecline(fresh, outcome.failure, text);
     return;
@@ -206,8 +197,8 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   const hits = [...bodyR.hits, ...footR.hits.map((h) => ({ ...h, index: h.index + body.length }))];
   const text = body + footR.text;
   if (!stillSame) {
-    await write({ ...entry, redactions: hits, discardReason: isPausedNow ? "paused" : p2 ? "new_followup" : "no_longer_pending" });
-    log(`#${t.number} changed while the answer was being drafted; draft discarded.`);
+    await write({ ...entry, redactions: hits, discardReason: p2 ? "new_followup" : "no_longer_pending" });
+    log(`#${t.number} changed while the reply was being drafted; draft discarded.`);
     return;
   }
   try {

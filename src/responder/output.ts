@@ -5,7 +5,7 @@ export const OUTPUT_SCHEMA = {
   additionalProperties: false,
   required: ["kind", "body_md", "confidence", "sources", "decline_reason"],
   properties: {
-    kind: { type: "string", enum: ["answer", "clarify", "decline"] },
+    kind: { type: "string", enum: ["reply", "decline"] },
     body_md: { type: "string" },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     sources: { type: "array", items: { type: "string" } },
@@ -33,7 +33,7 @@ export class OutputParseError extends Error {}
 function coerce(o: unknown): AgentOutput | null {
   if (typeof o !== "object" || o === null) return null;
   const r = o as Record<string, unknown>;
-  if (r.kind !== "answer" && r.kind !== "clarify" && r.kind !== "decline") return null;
+  if (r.kind !== "reply" && r.kind !== "decline") return null;
   if (typeof r.body_md !== "string" || !r.body_md.trim()) return null;
   const confidence = r.confidence === "high" || r.confidence === "low" ? r.confidence : "medium";
   const sources = Array.isArray(r.sources) ? r.sources.filter((s): s is string => typeof s === "string") : [];
@@ -63,8 +63,8 @@ export function parseAgentOutput(text: string): AgentOutput {
 /** Output handling rules. */
 export function decide(o: AgentOutput): Decision {
   if (o.kind === "decline") return { type: "decline", reason: o.decline_reason ?? "refused", body: o.body_md, sources: o.sources };
-  if (o.kind === "answer" && o.confidence === "low") {
+  if (o.confidence === "low") {
     return { type: "decline", reason: "low_confidence", body: o.body_md, sources: o.sources };
   }
-  return { type: o.kind, body: o.body_md, sources: o.sources };
+  return { type: "reply", body: o.body_md, sources: o.sources };
 }

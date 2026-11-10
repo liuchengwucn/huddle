@@ -6,29 +6,23 @@ import { HuddleError } from "./errors.js";
 import { machineConfigPath } from "./core/paths.js";
 
 export interface RepoConfig {
-  transport: "github-discussions";
   /** "owner/name" of the repo that stores huddle threads; absent → the code repo itself. */
   repo?: string;
   /** Allow threads in a public repository (visible to everyone). */
   public: boolean;
-  categories: { ask: string; kb: string };
-  limits: { rounds_per_thread: number; answers_per_hour: number; responder_timeout_minutes: number };
-  kb: { stale_lines: number };
+  categories: { messages: string; cards: string };
 }
 
-export const DEFAULT_REPO_CONFIG: RepoConfig = {
-  transport: "github-discussions",
-  public: false,
-  categories: { ask: "Q&A", kb: "General" },
-  limits: { rounds_per_thread: 8, answers_per_hour: 20, responder_timeout_minutes: 10 },
-  kb: { stale_lines: 50 },
-};
+export const DEFAULT_REPO_CONFIG: RepoConfig = { public: false, categories: { messages: "Q&A", cards: "General" } };
+
+export interface Limits { rounds_per_thread: number; replies_per_hour: number; timeout_minutes: number }
+export const DEFAULT_LIMITS: Limits = { rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 };
 
 export interface MachineConfig {
   backend?: "claude" | "codex";
   command?: string[];
   permission_mode: "auto" | "bypassPermissions";
-  extra_context_dirs: string[];
+  limits: Limits;
 }
 
 async function readYaml(file: string): Promise<Record<string, unknown> | null> {
@@ -50,21 +44,12 @@ async function readYaml(file: string): Promise<Record<string, unknown> | null> {
 }
 
 export function mergeRepoConfig(raw: Record<string, unknown> | null): RepoConfig {
-  const r = (raw ?? {}) as Partial<Record<Exclude<keyof RepoConfig, "transport" | "repo" | "public">, Record<string, unknown>>> & {
-    transport?: unknown;
-    repo?: unknown;
-    public?: unknown;
-  };
+  const r = (raw ?? {}) as { repo?: unknown; public?: unknown; categories?: Record<string, unknown> };
+  const cats = r.categories ?? {};
   const cfg: RepoConfig = {
-    transport: "github-discussions",
     public: false,
-    categories: { ...DEFAULT_REPO_CONFIG.categories, ...(r.categories ?? {}) } as RepoConfig["categories"],
-    limits: { ...DEFAULT_REPO_CONFIG.limits, ...(r.limits ?? {}) } as RepoConfig["limits"],
-    kb: { ...DEFAULT_REPO_CONFIG.kb, ...(r.kb ?? {}) } as RepoConfig["kb"],
+    categories: { messages: cats.messages ?? DEFAULT_REPO_CONFIG.categories.messages, cards: cats.cards ?? DEFAULT_REPO_CONFIG.categories.cards } as RepoConfig["categories"],
   };
-  if (r.transport !== undefined && r.transport !== "github-discussions") {
-    throw new HuddleError(`Unsupported transport: ${String(r.transport)}`);
-  }
   if (r.repo !== undefined) {
     if (typeof r.repo !== "string" || !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(r.repo)) {
       throw new HuddleError('Config key repo must look like "owner/name"');
@@ -74,9 +59,6 @@ export function mergeRepoConfig(raw: Record<string, unknown> | null): RepoConfig
   if (r.public !== undefined) {
     if (typeof r.public !== "boolean") throw new HuddleError("Config key public must be true or false");
     cfg.public = r.public;
-  }
-  for (const [k, v] of Object.entries({ ...cfg.limits, ...cfg.kb })) {
-    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) throw new HuddleError(`Config key ${k} must be a positive number`);
   }
   for (const [k, v] of Object.entries(cfg.categories)) {
     if (typeof v !== "string" || !v) throw new HuddleError(`Config key categories.${k} must be a non-empty string`);
@@ -91,10 +73,7 @@ export function parseSlug(s: string): { owner: string; repo: string } {
 
 export function parseMachineConfig(raw: Record<string, unknown> | null): MachineConfig {
   const r = raw ?? {};
-  const cfg: MachineConfig = {
-    permission_mode: "auto",
-    extra_context_dirs: [],
-  };
+  const cfg: MachineConfig = { permission_mode: "auto", limits: { ...DEFAULT_LIMITS } };
   if (r.backend !== undefined) {
     if (r.backend !== "claude" && r.backend !== "codex") throw new HuddleError("backend must be claude or codex");
     cfg.backend = r.backend;
@@ -111,11 +90,15 @@ export function parseMachineConfig(raw: Record<string, unknown> | null): Machine
     }
     cfg.permission_mode = r.permission_mode;
   }
-  if (r.extra_context_dirs !== undefined) {
-    if (!Array.isArray(r.extra_context_dirs) || !r.extra_context_dirs.every((s) => typeof s === "string")) {
-      throw new HuddleError("extra_context_dirs must be an array of strings");
+  if (r.limits !== undefined && r.limits !== null) {
+    if (typeof r.limits !== "object" || Array.isArray(r.limits)) throw new HuddleError("Config key limits must be a mapping");
+    const l = r.limits as Record<string, unknown>;
+    for (const k of Object.keys(DEFAULT_LIMITS) as (keyof Limits)[]) {
+      const v = l[k];
+      if (v === undefined) continue;
+      if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) throw new HuddleError(`Config key limits.${k} must be a positive number`);
+      cfg.limits[k] = v;
     }
-    cfg.extra_context_dirs = r.extra_context_dirs as string[];
   }
   return cfg;
 }

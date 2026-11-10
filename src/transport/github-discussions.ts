@@ -3,7 +3,6 @@ import { decodeBody, encodeBody } from "../core/meta.js";
 import type { Category, Message, Meta, Thread, User } from "../core/types.js";
 import { HuddleError } from "../errors.js";
 import type { GitHubClient } from "./github-client.js";
-import { assertRefRepo } from "./refs.js";
 import type { Transport } from "./types.js";
 
 const COMMENT_FIELDS = `id url body createdAt author { login }`;
@@ -11,8 +10,8 @@ const COMMENT_FIELDS = `id url body createdAt author { login }`;
 const TOP_COMMENT_FIELDS = `${COMMENT_FIELDS} replies(first: 20) { nodes { ${COMMENT_FIELDS} } }`;
 const DISCUSSION_FIELDS = `
   id number url title body createdAt updatedAt closed
-  author { login } category { name } answer { id }
-  viewerCanUpdate viewerCanDelete
+  author { login } category { name }
+  viewerCanUpdate
   repository { nameWithOwner }
   comments(first: 50) { pageInfo { hasNextPage endCursor } nodes { ${TOP_COMMENT_FIELDS} } }
 `;
@@ -20,18 +19,17 @@ const DISCUSSION_FIELDS = `
 interface RawComment { id: string; url: string; body: string; createdAt: string; author: { login: string } | null; replies?: { nodes: RawComment[] } | null }
 interface RawDiscussion {
   id: string; number: number; url: string; title: string; body: string; createdAt: string; updatedAt: string; closed: boolean;
-  author: { login: string } | null; category: { name: string }; answer: { id: string } | null;
-  viewerCanUpdate: boolean; viewerCanDelete: boolean;
+  author: { login: string } | null; category: { name: string };
+  viewerCanUpdate: boolean;
   repository?: { nameWithOwner: string };
   comments: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: RawComment[] };
 }
 
 const WRITE_ROLES = new Set(["admin", "maintain", "write"]);
-const CLOSE_REASON = { resolved: "RESOLVED", outdated: "OUTDATED", duplicate: "DUPLICATE" } as const;
 
 export class GitHubDiscussions implements Transport {
   private me: string | null = null;
-  private repoInfo: { id: string; visibility: string; categories: { id: string; name: string; isAnswerable: boolean }[]; enabled: boolean } | null = null;
+  private repoInfo: { id: string; visibility: string; categories: { id: string; name: string }[]; enabled: boolean } | null = null;
   private writeCache = new Map<string, { ok: boolean; at: number }>();
 
   constructor(
@@ -54,10 +52,10 @@ export class GitHubDiscussions implements Transport {
   private async info() {
     if (!this.repoInfo) {
       const d = await this.gh.graphql<{
-        repository: { id: string; visibility: string; hasDiscussionsEnabled: boolean; discussionCategories: { nodes: { id: string; name: string; isAnswerable: boolean }[] } } | null;
+        repository: { id: string; visibility: string; hasDiscussionsEnabled: boolean; discussionCategories: { nodes: { id: string; name: string }[] } } | null;
       }>(
         `query($o: String!, $r: String!) { repository(owner: $o, name: $r) {
-          id visibility hasDiscussionsEnabled discussionCategories(first: 50) { nodes { id name isAnswerable } } } }`,
+          id visibility hasDiscussionsEnabled discussionCategories(first: 50) { nodes { id name } } } }`,
         this.vars(),
       );
       if (!d?.repository) throw new HuddleError(`Repository ${this.owner}/${this.repo} not found, or you do not have access.`);
@@ -77,25 +75,23 @@ export class GitHubDiscussions implements Transport {
       `Discussions is not enabled on ${this.owner}/${this.repo}: run "npx -y huddle-agent@latest init" (it will enable it), or enable Discussions under Settings → General → Features.`,
     ];
     const problems: string[] = [];
-    const ask = info.categories.find((c) => c.name === this.cfg.categories.ask);
-    const kb = info.categories.find((c) => c.name === this.cfg.categories.kb);
     const url = `https://github.com/${this.owner}/${this.repo}/discussions/categories/new`;
-    if (!ask) problems.push(`Missing Discussion category "${this.cfg.categories.ask}": open ${url}, set the name to ${this.cfg.categories.ask}, and pick the Question / Answer format.`);
-    else if (!ask.isAnswerable) problems.push(`Category "${ask.name}" must use the Question / Answer format, otherwise answers cannot be marked.`);
-    if (!kb) problems.push(`Missing Discussion category "${this.cfg.categories.kb}": open ${url}, set the name to ${this.cfg.categories.kb}, and pick the Open-ended discussion format.`);
+    for (const name of [this.cfg.categories.messages, this.cfg.categories.cards]) {
+      if (!info.categories.some((c) => c.name === name)) problems.push(`Missing Discussion category "${name}": open ${url}, set the name to ${name}, and create it (any format works).`);
+    }
     return problems;
   }
 
   private async categoryId(cat: Category): Promise<string> {
     const name = this.cfg.categories[cat];
     const c = (await this.info()).categories.find((x) => x.name === name);
-    if (!c) throw new HuddleError(`Missing Discussion category "${name}"; run huddle doctor for the steps to create it.`);
+    if (!c) throw new HuddleError(`Missing Discussion category "${name}"; run huddle init for the steps to create it.`);
     return c.id;
   }
 
   private categoryOf(name: string): Category | null {
-    if (name === this.cfg.categories.ask) return "ask";
-    if (name === this.cfg.categories.kb) return "kb";
+    if (name === this.cfg.categories.messages) return "messages";
+    if (name === this.cfg.categories.cards) return "cards";
     return null;
   }
 
@@ -125,8 +121,7 @@ export class GitHubDiscussions implements Transport {
     const flat = comments.flatMap((c) => [c, ...(c.replies?.nodes ?? [])]).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
     return {
       id: d.id, number: d.number, url: d.url, title: d.title, category, author: d.author?.login ?? "ghost",
-      closed: d.closed, answerId: d.answer?.id ?? null, updatedAt: new Date(d.updatedAt),
-      viewerCanUpdate: d.viewerCanUpdate, viewerCanDelete: d.viewerCanDelete,
+      closed: d.closed, updatedAt: new Date(d.updatedAt), viewerCanUpdate: d.viewerCanUpdate,
       messages: [
         this.toMessage(d.id, d.author?.login, d.createdAt, d.body, d.url),
         ...flat.map((c) => this.toMessage(c.id, c.author?.login, c.createdAt, c.body, c.url)),
@@ -164,32 +159,6 @@ export class GitHubDiscussions implements Transport {
     return this.toMessage(c.id, c.author?.login, c.createdAt, c.body, c.url);
   }
 
-  async deleteMessage(messageId: string): Promise<void> {
-    await this.gh.graphql(`mutation($id: ID!) { deleteDiscussionComment(input: { id: $id }) { clientMutationId } }`, { id: messageId });
-  }
-
-  async locateMessage(ref: string): Promise<{ thread: Thread; message: Message }> {
-    assertRefRepo(ref, `${this.owner}/${this.repo}`);
-    const m = /\/discussions\/(\d+)#discussioncomment-(\d+)$/i.exec(ref.trim());
-    if (!m && /\/discussions\//i.test(ref)) throw new HuddleError(`${ref} is not a comment URL (expected .../discussions/<n>#discussioncomment-<id>).`);
-    let thread: Thread;
-    if (m) {
-      thread = await this.getThread(Number(m[1]));
-      const msg = thread.messages.find((x) => x.url.endsWith(`#discussioncomment-${m[2]}`));
-      if (!msg) throw new HuddleError(`Comment ${ref} not found`);
-      return { thread, message: msg };
-    }
-    const d = await this.gh.graphql<{ node: { discussion?: { number: number } } | null }>(
-      `query($id: ID!) { node(id: $id) { ... on DiscussionComment { discussion { number } } } }`,
-      { id: ref },
-    );
-    if (!d.node?.discussion) throw new HuddleError(`Comment ${ref} not found`);
-    thread = await this.getThread(d.node.discussion.number);
-    const msg = thread.messages.find((x) => x.id === ref);
-    if (!msg) throw new HuddleError(`Comment ${ref} not found`);
-    return { thread, message: msg };
-  }
-
   async listUpdatedThreads(cat: Category, since: Date): Promise<Thread[]> {
     const out: Thread[] = [];
     const catId = await this.categoryId(cat);
@@ -213,31 +182,11 @@ export class GitHubDiscussions implements Transport {
     }
   }
 
-  async markResolved(_thread: Thread, messageId: string): Promise<void> {
-    await this.gh.graphql(`mutation($id: ID!) { markDiscussionCommentAsAnswer(input: { id: $id }) { clientMutationId } }`, { id: messageId });
-  }
-
-  async unmarkResolved(thread: Thread): Promise<void> {
-    if (!thread.answerId) return;
-    await this.gh.graphql(`mutation($id: ID!) { unmarkDiscussionCommentAsAnswer(input: { id: $id }) { clientMutationId } }`, { id: thread.answerId });
-  }
-
-  async close(thread: Thread, reason: "resolved" | "outdated" | "duplicate"): Promise<void> {
-    await this.gh.graphql(
-      `mutation($id: ID!, $reason: DiscussionCloseReason!) { closeDiscussion(input: { discussionId: $id, reason: $reason }) { clientMutationId } }`,
-      { id: thread.id, reason: CLOSE_REASON[reason] },
-    );
-  }
-
   async updateThread(thread: Thread, title: string, text: string, meta: Meta): Promise<void> {
     await this.gh.graphql(
       `mutation($id: ID!, $title: String!, $body: String!) { updateDiscussion(input: { discussionId: $id, title: $title, body: $body }) { clientMutationId } }`,
       { id: thread.id, title, body: encodeBody(meta, text) },
     );
-  }
-
-  async deleteThread(thread: Thread): Promise<void> {
-    await this.gh.graphql(`mutation($id: ID!) { deleteDiscussion(input: { id: $id }) { clientMutationId } }`, { id: thread.id });
   }
 
   async search(query: string, cats: Category[], includeClosed: boolean): Promise<Thread[]> {

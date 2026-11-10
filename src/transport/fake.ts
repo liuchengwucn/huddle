@@ -50,9 +50,9 @@ export class FakeTransport implements Transport {
     const id = `D_${++this.seq}`;
     const url = `https://fake.test/discussions/${number}`;
     const t: Thread = {
-      id, number, url, title, category: cat, author: this.current, closed: false, answerId: null, updatedAt: at,
+      id, number, url, title, category: cat, author: this.current, closed: false, updatedAt: at,
       messages: [{ id, author: this.current, createdAt: at, body: text, meta: structuredClone(meta), url }],
-      viewerCanUpdate: true, viewerCanDelete: true,
+      viewerCanUpdate: true,
     };
     this.threads.set(number, t);
     return structuredClone(t);
@@ -77,44 +77,29 @@ export class FakeTransport implements Transport {
     return this.push(thread, text, null);
   }
 
-  async deleteMessage(messageId: string): Promise<void> {
+  /** Test only: delete a comment (as done on the web). */
+  deleteComment(messageId: string): void {
     for (const t of this.threads.values()) {
       const i = t.messages.findIndex((m, idx) => idx > 0 && m.id === messageId);
       if (i > 0) {
         t.messages.splice(i, 1);
-        if (t.answerId === messageId) t.answerId = null;
         return;
       }
     }
     throw new HuddleError(`Comment ${messageId} not found`);
   }
 
+  /** Test only: close a thread (as done on the web). */
+  closeThread(thread: Thread): void {
+    this.get(thread.number).closed = true;
+  }
+
   async getThread(number: number): Promise<Thread> {
     return structuredClone(this.get(number));
   }
 
-  async locateMessage(ref: string): Promise<{ thread: Thread; message: Message }> {
-    for (const t of this.threads.values()) {
-      const m = t.messages.find((x) => x.id === ref || x.url === ref);
-      if (m) return { thread: structuredClone(t), message: structuredClone(m) };
-    }
-    throw new HuddleError(`Comment ${ref} not found`);
-  }
-
   async listUpdatedThreads(cat: Category, since: Date): Promise<Thread[]> {
     return [...this.threads.values()].filter((t) => t.category === cat && t.updatedAt >= since).map((t) => structuredClone(t));
-  }
-
-  async markResolved(thread: Thread, messageId: string): Promise<void> {
-    this.get(thread.number).answerId = messageId;
-  }
-
-  async unmarkResolved(thread: Thread): Promise<void> {
-    this.get(thread.number).answerId = null;
-  }
-
-  async close(thread: Thread): Promise<void> {
-    this.get(thread.number).closed = true;
   }
 
   async updateThread(thread: Thread, title: string, text: string, meta: Meta): Promise<void> {
@@ -122,10 +107,6 @@ export class FakeTransport implements Transport {
     t.title = title;
     t.messages[0] = { ...t.messages[0], body: text, meta: structuredClone(meta) };
     t.updatedAt = this.tick();
-  }
-
-  async deleteThread(thread: Thread): Promise<void> {
-    this.threads.delete(thread.number);
   }
 
   async search(query: string, cats: Category[], includeClosed: boolean): Promise<Thread[]> {

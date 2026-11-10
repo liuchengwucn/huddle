@@ -53,7 +53,7 @@ export async function createContext(opts: { repo?: string }): Promise<Ctx> {
   return { root, repo, machine, transport, me, slug, publicThreads };
 }
 
-/** The responder must not use ask, reply or publish. */
+/** The responder must not use send, serve or publish. */
 export function assertNotResponder(): void {
   if (process.env.HUDDLE_RESPONDER === "1") {
     throw new HuddleError("Running inside a huddle responder environment (HUDDLE_RESPONDER=1); huddle write commands are not allowed.");

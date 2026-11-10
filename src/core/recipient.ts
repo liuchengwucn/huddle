@@ -1,7 +1,7 @@
 import { HuddleError } from "../errors.js";
 import type { Transport } from "../transport/types.js";
 import { sameLogin } from "./conversation.js";
-import { selfAskAllowed } from "./paths.js";
+import { selfSendAllowed } from "./paths.js";
 
 /** Parses a GitHub noreply email: <id>+<login>@users.noreply.github.com or <login>@users.noreply.github.com. */
 export function parseNoreplyEmail(email: string): string | null {
@@ -30,9 +30,9 @@ export async function resolveRecipient(
       );
     }
   }
-  if (sameLogin(login, me) && !selfAskAllowed()) throw new HuddleError("You cannot ask yourself.");
+  if (sameLogin(login, me) && !selfSendAllowed()) throw new HuddleError("You cannot send to yourself.");
   if (!(await t.hasWriteAccess(login))) {
-    throw new HuddleError(`${login} does not exist or does not have write access to this repo, so they cannot be asked.`);
+    throw new HuddleError(`${login} does not exist or does not have write access to this repo, so they cannot receive messages.`);
   }
   return login;
 }

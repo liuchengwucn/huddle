@@ -3,12 +3,12 @@ import { DEFAULT_REPO_CONFIG } from "../../src/config.js";
 import { GitHubClient } from "../../src/transport/github-client.js";
 import { GitHubDiscussions } from "../../src/transport/github-discussions.js";
 
-function stub(visibility = "PRIVATE") {
+function stub(visibility = "PRIVATE", categories: { id: string; name: string }[] = []) {
   const calls: { kind: string; path?: string }[] = [];
   const gh = {
     graphql: vi.fn(async () => {
       calls.push({ kind: "graphql" });
-      return { repository: { id: "R", visibility, hasDiscussionsEnabled: true, discussionCategories: { nodes: [] } } };
+      return { repository: { id: "R", visibility, hasDiscussionsEnabled: true, discussionCategories: { nodes: categories } } };
     }),
     rest: vi.fn(async (_m: string, path: string) => {
       calls.push({ kind: "rest", path });
@@ -23,12 +23,12 @@ describe("GitHubDiscussions search", () => {
   it("drops results from other repositories", async () => {
     const disc = (n: number, repo: string) => ({
       id: `D${n}`, number: n, url: "u", title: "t", body: "b", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", closed: false,
-      author: { login: "x" }, category: { name: DEFAULT_REPO_CONFIG.categories.ask }, answer: null, viewerCanUpdate: false, viewerCanDelete: false,
+      author: { login: "x" }, category: { name: DEFAULT_REPO_CONFIG.categories.messages }, viewerCanUpdate: false,
       repository: { nameWithOwner: repo }, comments: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] },
     });
     const gh = { graphql: vi.fn(async () => ({ search: { nodes: [disc(1, "OWN/Threads"), disc(2, "evil/threads"), {}] } })), rest: vi.fn() };
     const d = new GitHubDiscussions(gh as unknown as GitHubClient, "own", "threads", DEFAULT_REPO_CONFIG, { owner: "own", repo: "code" });
-    const res = await d.search("q", ["kb", "ask"], false);
+    const res = await d.search("q", ["cards", "messages"], false);
     expect(res.map((t) => t.number)).toEqual([1]);
     expect(JSON.stringify(gh.graphql.mock.calls[0])).toContain("nameWithOwner");
   });
@@ -50,6 +50,13 @@ describe("GitHubDiscussions", () => {
     expect(calls.filter((c) => c.kind === "graphql")).toHaveLength(1);
     await d.isPrivate(true);
     expect(calls.filter((c) => c.kind === "graphql")).toHaveLength(2);
+  });
+
+  it("checks both categories in any format", async () => {
+    expect(await stub("PRIVATE", [{ id: "1", name: "Q&A" }, { id: "2", name: "General" }]).d.checkSetup()).toEqual([]);
+    const p = await stub("PRIVATE", [{ id: "2", name: "General" }]).d.checkSetup();
+    expect(p).toHaveLength(1);
+    expect(p[0]).toContain(`Missing Discussion category "Q&A"`);
   });
 
   it("treats INTERNAL and PUBLIC as not private", async () => {
@@ -78,7 +85,7 @@ describe("GitHubDiscussions nested replies", () => {
   });
   const raw = {
     id: "D1", number: 1, url: "https://github.com/own/threads/discussions/1", title: "t", body: "b", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", closed: false,
-    author: { login: "x" }, category: { name: DEFAULT_REPO_CONFIG.categories.ask }, answer: null, viewerCanUpdate: false, viewerCanDelete: false,
+    author: { login: "x" }, category: { name: DEFAULT_REPO_CONFIG.categories.messages }, viewerCanUpdate: false,
     comments: {
       pageInfo: { hasNextPage: false, endCursor: null },
       nodes: [cm(2, "2026-01-01T00:01:00Z", [cm(3, "2026-01-01T00:02:00Z")]), cm(4, "2026-01-01T00:03:00Z")],
@@ -94,11 +101,5 @@ describe("GitHubDiscussions nested replies", () => {
     const t = await d.getThread(1);
     expect(t.messages.map((m) => m.body)).toEqual(["b", "c2", "c3", "c4"]);
     expect(JSON.stringify(gh.graphql.mock.calls[0])).toContain("replies(first: 20)");
-  });
-
-  it("locates a reply by its comment URL", async () => {
-    const { d } = make();
-    const r = await d.locateMessage("https://github.com/own/threads/discussions/1#discussioncomment-3");
-    expect(r.message.body).toBe("c3");
   });
 });

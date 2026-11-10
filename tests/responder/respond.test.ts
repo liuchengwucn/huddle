@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_REPO_CONFIG, type RepoConfig } from "../../src/config.js";
+import { DEFAULT_LIMITS, DEFAULT_REPO_CONFIG, type Limits, type MachineConfig } from "../../src/config.js";
 import { appendAudit, readRecentAudit } from "../../src/core/audit.js";
 import { claudeBackend } from "../../src/responder/backends/claude.js";
 import { MARKER } from "../../src/responder/prompt.js";
@@ -11,25 +11,24 @@ import { respondOnce, serve, type RespondDeps } from "../../src/responder/respon
 import type { RunResult, RunSpec } from "../../src/responder/runner.js";
 import { FakeTransport } from "../../src/transport/fake.js";
 
-const machine = { permission_mode: "auto" as const, extra_context_dirs: [] };
 const ok = (out: object, sessionId = "S1"): RunResult => ({
   exitCode: 0, stderr: "", timedOut: false, truncated: false, durationMs: 5,
   stdout: JSON.stringify({ type: "result", is_error: false, result: JSON.stringify(out), session_id: sessionId }),
 });
-const answer = (body = "because X") => ({ kind: "answer", body_md: body, confidence: "high", sources: ["a.ts:1"], decline_reason: null });
+const replyOut = (body = "because X") => ({ kind: "reply", body_md: body, confidence: "high", sources: ["a.ts:1"], decline_reason: null });
 const fail: RunResult = { exitCode: 1, stdout: "", stderr: "No conversation found", timedOut: false, truncated: false, durationMs: 5 };
 
-function setup(limits: Partial<RepoConfig["limits"]> = {}) {
+function setup(limits: Partial<Limits> = {}) {
+  const machine: MachineConfig = { permission_mode: "auto", limits: { ...DEFAULT_LIMITS, ...limits } };
   const t = new FakeTransport("bob", Date.now());
   t.writers.add("bob");
   t.writers.add("alice");
   const dir = mkdtempSync(path.join(tmpdir(), "huddle-respond-"));
   const calls: RunSpec[] = [];
-  let script: (spec: RunSpec, i: number) => Promise<RunResult> | RunResult = () => ok(answer());
+  let script: (spec: RunSpec, i: number) => Promise<RunResult> | RunResult = () => ok(replyOut());
   const deps: RespondDeps = {
     transport: t, me: "alice", machine, backend: claudeBackend(machine), cwd: "/tmp", auditDir: dir,
-    repo: { ...DEFAULT_REPO_CONFIG, limits: { ...DEFAULT_REPO_CONFIG.limits, ...limits } },
-    isPaused: () => false, log: (m) => { if (process.env.DBG) console.log(m); },
+    repo: DEFAULT_REPO_CONFIG, log: (m) => { if (process.env.DBG) console.log(m); },
     run: async (spec) => {
       calls.push(spec);
       return script(spec, calls.length - 1);
@@ -38,82 +37,82 @@ function setup(limits: Partial<RepoConfig["limits"]> = {}) {
   return { t, dir, calls, deps, setScript: (s: typeof script) => { script = s; } };
 }
 
-async function askAlice(t: FakeTransport, text = "why?") {
-  const th = await t.as("bob").createThread("ask", "q", text, { type: "ask", to: "alice" });
+async function sendAlice(t: FakeTransport, text = "why?") {
+  const th = await t.as("bob").createThread("messages", "q", text, { type: "message", to: "alice" });
   t.as("alice");
   return th;
 }
 
 describe("respondOnce", () => {
-  it("answers a directed question with re, footer and audit", async () => {
+  it("replies to a directed message with re, footer and audit", async () => {
     const { t, deps, calls, dir } = setup();
-    const th = await askAlice(t);
+    const th = await sendAlice(t);
     await respondOnce(deps);
     const full = await t.getThread(th.number);
     const a = full.messages[1];
     expect(a.author).toBe("alice");
-    expect(a.meta).toEqual({ type: "answer", re: th.id });
+    expect(a.meta).toEqual({ type: "reply", re: th.id });
     expect(a.body).toContain("because X");
-    expect(a.body).toContain("Answered automatically");
+    expect(a.body).toContain("Replied automatically by alice's agent (claude)");
     expect(calls[0].stdin.startsWith(MARKER)).toBe(true);
     const audit = await readRecentAudit(1, new Date(), dir);
-    expect(audit.at(-1)).toMatchObject({ postedType: "answer", sessionId: "S1", invokedAgent: true });
+    expect(audit.at(-1)).toMatchObject({ postedType: "reply", sessionId: "S1", invokedAgent: true });
     await respondOnce(deps);
     expect(calls.length).toBe(1); // already replied; no repeat
   });
 
   it("turns low confidence into decline and redacts secrets", async () => {
     const { t, deps, setScript } = setup();
-    const th = await askAlice(t);
-    setScript(() => ok({ ...answer(`token ghp_${"A".repeat(36)}`), confidence: "low" }));
+    const th = await sendAlice(t);
+    setScript(() => ok({ ...replyOut(`token ghp_${"A".repeat(36)}`), confidence: "low" }));
     await respondOnce(deps);
     const m = (await t.getThread(th.number)).messages[1];
     expect(m.meta).toEqual({ type: "decline", re: th.id, reason: "low_confidence" });
     expect(m.body).toContain("[REDACTED:github-token]");
   });
 
-  it("resumes the same session for followups after clarify", async () => {
+  it("resumes the same session for follow-ups after asking back", async () => {
     const { t, deps, calls, setScript } = setup();
-    const th = await askAlice(t);
-    setScript(() => ok({ kind: "clarify", body_md: "TTL or manual?", confidence: "medium", sources: [], decline_reason: null }));
+    const th = await sendAlice(t);
+    setScript(() => ok({ kind: "reply", body_md: "TTL or manual?", confidence: "medium", sources: [], decline_reason: null }));
     await respondOnce(deps);
-    const f = await t.as("bob").reply(th, "TTL", { type: "followup" });
+    const f = await t.as("bob").reply(th, "TTL", { type: "message" });
     t.as("alice");
-    setScript(() => ok(answer("TTL is 5m"), "S1"));
+    setScript(() => ok(replyOut("TTL is 5m"), "S1"));
     await respondOnce(deps);
     expect(calls[1].argv.slice(-2)).toEqual(["--resume", "S1"]);
     expect(calls[1].stdin).toContain("TTL");
     expect(calls[1].stdin).not.toContain(MARKER);
     expect(calls[1].stdin).not.toContain("why?");
     const last = (await t.getThread(th.number)).messages.at(-1)!;
-    expect(last.meta).toEqual({ type: "answer", re: f.id });
+    expect(last.meta).toEqual({ type: "reply", re: f.id });
   });
 
-  it("discards the draft when a followup arrives meanwhile, then answers all on the next round", async () => {
+  it("discards the draft when a followup arrives meanwhile, then replies to all on the next round", async () => {
     const { t, deps, calls, dir, setScript } = setup();
-    const th = await askAlice(t);
+    const th = await sendAlice(t);
     setScript(async () => {
-      await t.as("bob").reply(th, "also: what about Y?", { type: "followup" });
+      await t.as("bob").reply(th, "also: what about Y?", { type: "message" });
       t.as("alice");
-      return ok(answer("stale draft"));
+      return ok(replyOut("stale draft"));
     });
     await respondOnce(deps);
     expect((await t.getThread(th.number)).messages.filter((m) => m.author === "alice")).toHaveLength(0);
     expect((await readRecentAudit(1, new Date(), dir)).at(-1)!.discardReason).toBe("new_followup");
 
-    setScript(() => ok(answer("X and Y")));
+    setScript(() => ok(replyOut("X and Y")));
     await respondOnce(deps);
     expect(calls[1].stdin).toContain("your previous draft was not sent");
     expect(calls[1].stdin).toContain("what about Y");
     const full = await t.getThread(th.number);
-    expect(full.messages.at(-1)!.meta).toEqual({ type: "answer", re: full.messages[1].id });
+    expect(full.messages.at(-1)!.meta).toEqual({ type: "reply", re: full.messages[1].id });
   });
 
   it("posts rate_limited decline once when the per-thread limit is reached", async () => {
     const { t, deps, calls } = setup({ rounds_per_thread: 1 });
-    const th = await askAlice(t);
+    const th = await sendAlice(t);
     await respondOnce(deps);
-    await t.as("bob").reply(th, "more", { type: "followup" });
+    await t.as("bob").reply(th, "more", { type: "message" });
     t.as("alice");
     await respondOnce(deps);
     await respondOnce(deps);
@@ -124,26 +123,26 @@ describe("respondOnce", () => {
   });
 
   it("skips silently when the hourly limit is reached", async () => {
-    const { t, deps, calls } = setup({ answers_per_hour: 1 });
-    await askAlice(t, "q1");
-    const th2 = await askAlice(t, "q2");
+    const { t, deps, calls } = setup({ replies_per_hour: 1 });
+    await sendAlice(t, "q1");
+    const th2 = await sendAlice(t, "q2");
     await respondOnce(deps);
     expect(calls).toHaveLength(1);
     expect((await t.getThread(th2.number)).messages).toHaveLength(1);
   });
 
   it("enforces the hourly limit across retries without posting", async () => {
-    const { t, deps, calls, setScript } = setup({ answers_per_hour: 1 });
-    const th = await askAlice(t);
-    setScript(() => ({ ...ok(answer()), stdout: "garbage" }));
+    const { t, deps, calls, setScript } = setup({ replies_per_hour: 1 });
+    const th = await sendAlice(t);
+    setScript(() => ({ ...ok(replyOut()), stdout: "garbage" }));
     await respondOnce(deps);
     expect(calls).toHaveLength(1);
     expect((await t.getThread(th.number)).messages).toHaveLength(1);
   });
 
   it("caps retries of a resumable session at the remaining budget", async () => {
-    const { t, deps, calls, dir, setScript } = setup({ answers_per_hour: 2 });
-    const th = await askAlice(t);
+    const { t, deps, calls, dir, setScript } = setup({ replies_per_hour: 2 });
+    const th = await sendAlice(t);
     await appendAudit(
       { time: new Date().toISOString(), threadId: th.id, threadUrl: th.url, re: "x", backend: "claude", invokedAgent: false, sessionId: "OLD", resumed: false, postedType: null, postedText: null, redactions: [], discardReason: null, durationMs: 0 },
       dir,
@@ -156,73 +155,76 @@ describe("respondOnce", () => {
 
   it("falls back to a fresh session when resume fails", async () => {
     const { t, deps, calls, dir, setScript } = setup();
-    const th = await askAlice(t);
+    const th = await sendAlice(t);
     await appendAudit(
       { time: new Date().toISOString(), threadId: th.id, threadUrl: th.url, re: "x", backend: "claude", invokedAgent: false, sessionId: "OLD", resumed: false, postedType: null, postedText: null, redactions: [], discardReason: null, durationMs: 0 },
       dir,
     );
-    setScript((spec) => (spec.argv.includes("--resume") ? fail : ok(answer(), "NEW")));
+    setScript((spec) => (spec.argv.includes("--resume") ? fail : ok(replyOut(), "NEW")));
     await respondOnce(deps);
     expect(calls).toHaveLength(2);
     expect(calls[1].stdin.startsWith(MARKER)).toBe(true);
-    expect((await t.getThread(th.number)).messages[1].meta!.type).toBe("answer");
+    expect((await t.getThread(th.number)).messages[1].meta!.type).toBe("reply");
     const rows = (await readRecentAudit(1, new Date(), dir)).slice(1);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ resumed: true, sessionId: null, postedType: null });
     expect(rows[0].error).toBeTruthy();
-    expect(rows[1]).toMatchObject({ resumed: false, sessionId: "NEW", postedType: "answer" });
+    expect(rows[1]).toMatchObject({ resumed: false, sessionId: "NEW", postedType: "reply" });
   });
 
   it("declines with timeout and with error after retries", async () => {
     const { t, deps, calls, setScript } = setup();
-    const th = await askAlice(t);
+    const th = await sendAlice(t);
     setScript(() => ({ exitCode: null, stdout: "", stderr: "", timedOut: true, truncated: false, durationMs: 1 }));
     await respondOnce(deps);
     expect((await t.getThread(th.number)).messages[1].meta).toEqual({ type: "decline", re: th.id, reason: "timeout" });
     expect(calls).toHaveLength(1);
 
-    const th2 = await askAlice(t, "q2");
+    const th2 = await sendAlice(t, "q2");
     setScript(() => fail);
     await respondOnce(deps);
     expect(calls).toHaveLength(3);
     expect((await t.getThread(th2.number)).messages[1].meta).toEqual({ type: "decline", re: th2.id, reason: "error" });
   });
 
-  it("discards the draft and posts nothing when paused during the run", async () => {
-    const { t, deps, dir } = setup();
-    const th = await askAlice(t);
-    let paused = false;
-    await respondOnce({ ...deps, isPaused: () => paused, run: async () => { paused = true; return ok(answer()); } });
-    expect((await t.getThread(th.number)).messages).toHaveLength(1);
-    expect((await readRecentAudit(1, new Date(), dir)).at(-1)!.discardReason).toBe("paused");
-    let p2 = false;
-    await respondOnce({ ...deps, isPaused: () => p2, run: async () => { p2 = true; return fail; } });
-    expect((await t.getThread(th.number)).messages).toHaveLength(1);
+  it("takes the agent timeout and round limit from the machine limits", async () => {
+    const { t, deps, calls } = setup({ timeout_minutes: 2 });
+    const th = await sendAlice(t);
+    await respondOnce(deps);
+    expect(calls[0].timeoutMs).toBe(120_000);
+    expect("limits" in deps.repo).toBe(false);
+    await t.as("bob").reply(th, "more", { type: "message" });
+    t.as("alice");
+    deps.machine = { ...deps.machine, limits: { ...deps.machine.limits, rounds_per_thread: 1 } };
+    await respondOnce(deps);
+    const last = (await t.getThread(th.number)).messages.at(-1)!;
+    expect(last.meta).toMatchObject({ type: "decline", reason: "rate_limited" });
+    expect(last.body).toContain("automatic-reply limit of 1 rounds");
   });
 
   it("redacts secrets in agent-provided sources", async () => {
     const { t, deps, setScript } = setup();
-    const th = await askAlice(t);
-    setScript(() => ok({ ...answer(), sources: [`cfg.ts?token=ghp_${"B".repeat(36)}`] }));
+    const th = await sendAlice(t);
+    setScript(() => ok({ ...replyOut(), sources: [`cfg.ts?token=ghp_${"B".repeat(36)}`] }));
     await respondOnce(deps);
     const m = (await t.getThread(th.number)).messages[1];
     expect(m.body).not.toContain("ghp_BBBB");
     expect(m.body).toContain("[REDACTED:github-token]");
   });
 
-  it("truncates over-long answers", async () => {
+  it("truncates over-long replies", async () => {
     const { t, deps, setScript } = setup();
-    const th = await askAlice(t);
-    setScript(() => ok(answer("x".repeat(70_000))));
+    const th = await sendAlice(t);
+    setScript(() => ok(replyOut("x".repeat(70_000))));
     await respondOnce(deps);
     const m = (await t.getThread(th.number)).messages[1];
     expect(m.body.length).toBeLessThanOrEqual(60_000);
-    expect(m.body).toContain("answer truncated");
+    expect(m.body).toContain("reply truncated");
   });
 
   it("writes exactly one post_error row when reply throws, and does not re-run the agent past the hourly cap", async () => {
-    const { t, deps, calls, dir } = setup({ answers_per_hour: 1 });
-    const th = await askAlice(t);
+    const { t, deps, calls, dir } = setup({ replies_per_hour: 1 });
+    const th = await sendAlice(t);
     const orig = t.reply.bind(t);
     t.reply = async () => { throw new Error("boom"); };
     await respondOnce(deps);
@@ -237,8 +239,8 @@ describe("respondOnce", () => {
   });
 
   it("writes a post_error row when the held-draft refetch throws", async () => {
-    const { t, deps, calls, dir } = setup({ answers_per_hour: 1 });
-    const th = await askAlice(t);
+    const { t, deps, calls, dir } = setup({ replies_per_hour: 1 });
+    const th = await sendAlice(t);
     const orig = t.getThread.bind(t);
     let n = 0;
     t.getThread = async (num) => {
@@ -257,7 +259,7 @@ describe("respondOnce", () => {
 
   it("backs off for 10 minutes after a post_error, then retries", async () => {
     const { t, deps, calls } = setup();
-    await askAlice(t);
+    await sendAlice(t);
     const orig = t.reply.bind(t);
     t.reply = async () => { throw new Error("boom"); };
     await respondOnce(deps);
@@ -270,8 +272,8 @@ describe("respondOnce", () => {
 
   it("one failing thread does not stop the next", async () => {
     const { t, deps } = setup();
-    const a = await askAlice(t, "q1");
-    const b = await askAlice(t, "q2");
+    const a = await sendAlice(t, "q1");
+    const b = await sendAlice(t, "q2");
     const orig = t.reply.bind(t);
     t.reply = async (th, ...rest) => {
       if (th.number === a.number) throw new Error("boom");
@@ -282,11 +284,9 @@ describe("respondOnce", () => {
     expect((await t.getThread(b.number)).messages).toHaveLength(2);
   });
 
-  it("does nothing when paused or when the asker lacks write access", async () => {
+  it("does nothing when the sender lacks write access", async () => {
     const { t, deps, calls } = setup();
-    await askAlice(t);
-    await respondOnce({ ...deps, isPaused: () => true });
-    expect(calls).toHaveLength(0);
+    await sendAlice(t);
     t.writers.delete("bob");
     await respondOnce(deps);
     expect(calls).toHaveLength(0);
@@ -311,15 +311,15 @@ describe("respondOnce", () => {
 
   it("passes publicThread into the prompt", async () => {
     const { t, deps, calls } = setup();
-    await askAlice(t);
+    await sendAlice(t);
     await respondOnce({ ...deps, publicThread: true });
     expect(calls[0].stdin).toContain("This thread is PUBLIC");
   });
 
   it("discards the draft when the repo turns public while the agent runs", async () => {
     const { t, deps, setScript } = setup();
-    await askAlice(t);
-    setScript(() => { t.private = false; return ok(answer()); });
+    await sendAlice(t);
+    setScript(() => { t.private = false; return ok(replyOut()); });
     await expect(respondOnce(deps)).rejects.toThrow(PublicRepoError);
     expect((await t.getThread(1)).messages).toHaveLength(1);
     const audit = await readRecentAudit(7, new Date(), deps.auditDir!);
@@ -329,8 +329,8 @@ describe("respondOnce", () => {
   it("redrafts under the PUBLIC rule when public is allowed but the draft was not", async () => {
     const { t, deps, setScript, calls } = setup();
     deps.repo = { ...deps.repo, public: true };
-    await askAlice(t);
-    setScript(() => { t.private = false; return ok(answer()); });
+    await sendAlice(t);
+    setScript(() => { t.private = false; return ok(replyOut()); });
     await respondOnce(deps);
     expect((await t.getThread(1)).messages).toHaveLength(1);
     expect(deps.publicThread).toBe(true);

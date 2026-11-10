@@ -12,24 +12,18 @@ function parseDiscussionUrl(ref: string): DiscussionUrl | null {
   return m ? { owner: m[1], repo: m[2], number: Number(m[3]) } : null;
 }
 
-/** Any ref containing /discussions/ must be a GitHub discussion URL of the transport repo (case-insensitive). */
-export function assertRefRepo(ref: string, transport?: string): void {
-  if (!/\/discussions\//i.test(ref)) return;
-  const u = parseDiscussionUrl(ref);
-  if (!u) throw new HuddleError(`${ref} is not a recognised GitHub discussion URL (expected https://github.com/<owner>/<repo>/discussions/<n>).`);
-  if (transport && `${u.owner}/${u.repo}`.toLowerCase() !== transport.toLowerCase()) {
-    throw new HuddleError(`${ref} belongs to ${u.owner}/${u.repo}, but huddle threads live in ${transport}.`);
-  }
-}
-
-/** Accepts 123, #123, or https://github.com/o/r/discussions/123 (optionally with a #discussioncomment-<id> fragment). */
+/** Accepts 123, #123, or https://github.com/o/r/discussions/123 (optionally with a #discussioncomment-<id> fragment); a URL must point at the transport repo. */
 export function parseThreadRef(ref: string, transport?: string): number {
   const s = ref.trim();
   const plain = /^#?(\d+)$/.exec(s);
   if (plain) return Number(plain[1]);
   if (/\/discussions\//i.test(s)) {
-    assertRefRepo(s, transport);
-    return parseDiscussionUrl(s)!.number;
+    const u = parseDiscussionUrl(s);
+    if (!u) throw new HuddleError(`${ref} is not a recognised GitHub discussion URL (expected https://github.com/<owner>/<repo>/discussions/<n>).`);
+    if (transport && `${u.owner}/${u.repo}`.toLowerCase() !== transport.toLowerCase()) {
+      throw new HuddleError(`${ref} belongs to ${u.owner}/${u.repo}, but huddle threads live in ${transport}.`);
+    }
+    return u.number;
   }
   throw new HuddleError(`Unrecognized thread reference: ${ref} (use 123, #123, or a Discussion URL)`);
 }

@@ -38,8 +38,8 @@ describe("audit", () => {
   it("reports whether the last agent attempt was discarded", () => {
     expect(lastAttemptDiscarded([entry({ discardReason: "new_followup" })], "T1")).toBe(true);
     expect(lastAttemptDiscarded([entry({ discardReason: "new_followup" }), entry({})], "T1")).toBe(false);
-    expect(lastAttemptDiscarded([entry({ discardReason: "x" }), entry({ invokedAgent: false })], "T1")).toBe(true);
-    expect(lastAttemptDiscarded([entry({ discardReason: "x" }), entry({ error: "boom" })], "T1")).toBe(true);
+    expect(lastAttemptDiscarded([entry({ discardReason: "no_longer_pending" }), entry({ invokedAgent: false })], "T1")).toBe(true);
+    expect(lastAttemptDiscarded([entry({ discardReason: "no_longer_pending" }), entry({ error: "boom" })], "T1")).toBe(true);
     expect(lastAttemptDiscarded([entry({}), entry({ discardReason: "post_error", error: "post failed: x" })], "T1")).toBe(true);
   });
 

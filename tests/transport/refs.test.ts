@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertRefRepo, parseThreadRef } from "../../src/transport/refs.js";
+import { parseThreadRef } from "../../src/transport/refs.js";
 
 describe("parseThreadRef", () => {
   it("accepts numbers and URLs of the transport repo", () => {
@@ -19,8 +19,8 @@ describe("parseThreadRef", () => {
     expect(() => parseThreadRef("https://evil.com/o/r/discussions/7", "o/r")).toThrow(/not a recognised GitHub discussion URL/);
     expect(() => parseThreadRef("https://github.com.evil.com/o/r/discussions/7", "o/r")).toThrow(/not a recognised/);
     expect(() => parseThreadRef("https://github.com/o/r/discussions/7/evil", "o/r")).toThrow(/not a recognised/);
-    expect(() => assertRefRepo("ftp://github.com/o/r/discussions/7", "o/r")).toThrow(/not a recognised/);
-    expect(() => assertRefRepo("DC_kwDOabc", "o/r")).not.toThrow();
+    expect(() => parseThreadRef("ftp://github.com/o/r/discussions/7", "o/r")).toThrow(/not a recognised/);
+    expect(() => parseThreadRef("DC_kwDOabc", "o/r")).toThrow(/Unrecognized thread reference/);
   });
 
   it("rejects URLs from another repo", () => {

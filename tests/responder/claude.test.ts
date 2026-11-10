@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { claudeBackend } from "../../src/responder/backends/claude.js";
 import type { RunResult } from "../../src/responder/runner.js";
 
-const cfg = { permission_mode: "auto" as const, extra_context_dirs: [], command: ["/x/wrap", "--flag"] };
+const cfg = { permission_mode: "auto" as const, limits: { rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 }, command: ["/x/wrap", "--flag"] };
 const run = (stdout: string, exitCode: number | null = 0, timedOut = false): RunResult => ({ exitCode, stdout, stderr: "boom", timedOut, truncated: false, durationMs: 1 });
 
 describe("claude backend", () => {
@@ -54,7 +54,7 @@ describe("claude backend", () => {
 
 describe("session id hardening", () => {
   it("ignores unsafe session ids", () => {
-    const b = claudeBackend({ permission_mode: "auto", extra_context_dirs: [] });
+    const b = claudeBackend({ permission_mode: "auto", limits: { rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 } });
     for (const id of ["--dangerous", "-x", "a b", "a;b", "", "x".repeat(201)]) {
       expect(b.argv({ resumeSessionId: id })).not.toContain("--resume");
     }

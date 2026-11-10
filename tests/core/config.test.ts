@@ -3,17 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { HuddleError } from "../../src/errors.js";
-import { DEFAULT_REPO_CONFIG, loadRepoConfig, mergeRepoConfig, parseGitHubRemote, parseMachineConfig, parseSlug } from "../../src/config.js";
+import { DEFAULT_LIMITS, DEFAULT_REPO_CONFIG, loadRepoConfig, mergeRepoConfig, parseGitHubRemote, parseMachineConfig, parseSlug } from "../../src/config.js";
 
 describe("config", () => {
   it("pins literal defaults", () => {
-    expect(DEFAULT_REPO_CONFIG.limits).toEqual({ rounds_per_thread: 8, answers_per_hour: 20, responder_timeout_minutes: 10 });
-    expect(DEFAULT_REPO_CONFIG.kb.stale_lines).toBe(50);
-    expect(DEFAULT_REPO_CONFIG.categories).toEqual({ ask: "Q&A", kb: "General" });
+    expect(DEFAULT_LIMITS).toEqual({ rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 });
+    expect(DEFAULT_REPO_CONFIG).toEqual({ public: false, categories: { messages: "Q&A", cards: "General" } });
   });
 
   it("defaults to zero-config categories and a private-only transport", () => {
-    expect(DEFAULT_REPO_CONFIG.public).toBe(false);
+    expect(mergeRepoConfig(null)).toEqual(DEFAULT_REPO_CONFIG);
     expect(mergeRepoConfig(null).repo).toBeUndefined();
   });
 
@@ -26,10 +25,17 @@ describe("config", () => {
     expect(parseSlug("a/b")).toEqual({ owner: "a", repo: "b" });
   });
 
+  it("merges categories and ignores old keys", () => {
+    expect(mergeRepoConfig({ categories: { cards: "Cards" } }).categories).toEqual({ messages: "Q&A", cards: "Cards" });
+    expect(() => mergeRepoConfig({ categories: { messages: "" } })).toThrow(/categories.messages/);
+    const old = mergeRepoConfig({ transport: "other", limits: { rounds_per_thread: -1 }, kb: { stale_lines: 1 }, categories: { ask: "X", kb: "Y" } });
+    expect(old).toEqual(DEFAULT_REPO_CONFIG);
+  });
+
   it("throws HuddleError on YAML syntax errors", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "huddle-cfg-"));
     await mkdir(path.join(root, ".huddle"));
-    await writeFile(path.join(root, ".huddle", "config.yml"), "limits: [unclosed\n  : : :\n");
+    await writeFile(path.join(root, ".huddle", "config.yml"), "categories: [unclosed\n  : : :\n");
     await expect(loadRepoConfig(root)).rejects.toThrow(HuddleError);
     await expect(loadRepoConfig(root)).rejects.toThrow(/not valid YAML/);
   });
@@ -47,17 +53,20 @@ describe("config", () => {
     expect(parseGitHubRemote("git@gitlab.com:acme/widget.git")).toBeNull();
   });
 
-  it("merges repo config with defaults", () => {
-    expect(mergeRepoConfig(null)).toEqual(DEFAULT_REPO_CONFIG);
-    const c = mergeRepoConfig({ limits: { rounds_per_thread: 3 } });
-    expect(c.limits).toEqual({ ...DEFAULT_REPO_CONFIG.limits, rounds_per_thread: 3 });
-    expect(() => mergeRepoConfig({ limits: { answers_per_hour: -1 } })).toThrow();
-  });
-
   it("validates machine config", () => {
-    expect(parseMachineConfig(null)).toEqual({ permission_mode: "auto", extra_context_dirs: [] });
+    expect(parseMachineConfig(null)).toEqual({ permission_mode: "auto", limits: DEFAULT_LIMITS });
     expect(parseMachineConfig({ backend: "codex", command: ["/x/wrap"] })).toMatchObject({ backend: "codex", command: ["/x/wrap"] });
     expect(() => parseMachineConfig({ command: "cc" })).toThrow(/array/);
     expect(() => parseMachineConfig({ permission_mode: "yolo" })).toThrow();
+  });
+
+  it("parses machine limits over defaults", () => {
+    expect(parseMachineConfig({ limits: { rounds_per_thread: 3 } }).limits).toEqual({ ...DEFAULT_LIMITS, rounds_per_thread: 3 });
+    expect(parseMachineConfig({ limits: null }).limits).toEqual(DEFAULT_LIMITS);
+    expect(parseMachineConfig({ limits: { bogus: 1 } }).limits).toEqual(DEFAULT_LIMITS);
+    expect(() => parseMachineConfig({ limits: { replies_per_hour: -1 } })).toThrow("Config key limits.replies_per_hour must be a positive number");
+    expect(() => parseMachineConfig({ limits: { timeout_minutes: "10" } })).toThrow(/limits.timeout_minutes/);
+    expect(() => parseMachineConfig({ limits: [1] })).toThrow(/mapping/);
+    expect(parseMachineConfig(null).limits).not.toBe(DEFAULT_LIMITS);
   });
 });

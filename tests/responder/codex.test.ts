@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { codexBackend } from "../../src/responder/backends/codex.js";
 import type { RunResult } from "../../src/responder/runner.js";
 
-const cfg = { permission_mode: "auto" as const, extra_context_dirs: [] };
+const cfg = { permission_mode: "auto" as const, limits: { rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 } };
 const run = (stdout: string, exitCode: number | null = 0, timedOut = false): RunResult => ({ exitCode, stdout, stderr: "boom", timedOut, truncated: false, durationMs: 1 });
 const lines = (evs: unknown[]) => evs.map((e) => JSON.stringify(e)).join("\n");
 

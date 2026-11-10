@@ -2,7 +2,7 @@ import type { DeclineReason, Meta, MsgType } from "./types.js";
 
 const PREFIX = "<!-- huddle:v1 ";
 const SUFFIX = " -->";
-const TYPES: ReadonlySet<string> = new Set<MsgType>(["ask", "followup", "answer", "clarify", "decline", "kb"]);
+const TYPES: ReadonlySet<string> = new Set<MsgType>(["message", "reply", "decline", "card"]);
 const REASONS: ReadonlySet<string> = new Set<DeclineReason>([
   "low_confidence", "refused", "timeout", "error", "rate_limited",
 ]);
@@ -33,13 +33,12 @@ function isMeta(o: unknown): o is Meta {
   if (typeof o !== "object" || o === null || Array.isArray(o)) return false;
   const r = o as Record<string, unknown>;
   if (!isStr(r.type) || !TYPES.has(r.type)) return false;
-  for (const k of ["to", "re", "commit", "source", "supersedes"]) {
+  for (const k of ["to", "re"]) {
     if (r[k] !== undefined && !isStr(r[k])) return false;
   }
   if (r.reason !== undefined && !(isStr(r.reason) && REASONS.has(r.reason))) return false;
-  if (r.files !== undefined && !(Array.isArray(r.files) && r.files.every(isStr))) return false;
-  if (r.type === "ask" && !(isStr(r.to) && r.to)) return false;
-  if ((r.type === "answer" || r.type === "clarify" || r.type === "decline") && !(isStr(r.re) && r.re)) return false;
+  if (r.type === "message" && r.to !== undefined && !r.to) return false;
+  if ((r.type === "reply" || r.type === "decline") && !(isStr(r.re) && r.re)) return false;
   if (r.type === "decline" && r.reason === undefined) return false;
   return true;
 }

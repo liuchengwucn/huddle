@@ -4,45 +4,35 @@ import { HuddleError } from "../errors.js";
 import type { Transport } from "../transport/types.js";
 
 export interface WaitResult {
-  code: 0 | 2 | 3 | 4;
+  code: 0 | 2 | 3;
   output: string;
 }
 
-const DECLINE_HINT: Record<string, string> = {
-  timeout: "You can retry later with huddle reply.",
-  error: "You can retry later with huddle reply.",
-  low_confidence: "They do not know the answer; consider asking someone else.",
-  refused: "They declined to answer; tell the user why.",
-  rate_limited: "This topic needs direct human communication; tell the user, and do not open a new thread to get around the limit.",
-};
+const declineHint = (reason: string, n: number): string =>
+  ({
+    timeout: `You can retry later with huddle send ${n} "<text>".`,
+    error: `You can retry later with huddle send ${n} "<text>".`,
+    low_confidence: "They do not know enough to reply; consider sending to someone else.",
+    refused: "They declined to reply; tell the user why.",
+    rate_limited: "This topic needs direct human communication; tell the user, and do not open a new thread to get around the limit.",
+  })[reason] ?? "Tell the user why; rephrase or send to someone else if needed.";
 
 export function formatReply(t: Thread, reply: Message): WaitResult {
   const n = t.number;
-  switch (reply.meta!.type) {
-    case "answer":
-      return {
-        code: 0,
-        output: `${reply.body}\n\n[huddle] Thread #${n} has an answer. Run huddle resolve ${n} once the question is settled; to follow up, use huddle reply ${n} "<text>".`,
-      };
-    case "clarify":
-      return {
-        code: 4,
-        output: `[huddle] They need clarification (thread #${n}):\n\n${reply.body}\n\n[huddle] Add the missing information with huddle reply ${n} "<text>".`,
-      };
-    default: {
-      const reason = reply.meta!.reason ?? "refused";
-      return {
-        code: 3,
-        output: `[huddle] Their agent cannot answer (reason: ${reason}, thread #${n}):\n\n${reply.body}\n\n[huddle] ${DECLINE_HINT[reason] ?? "Tell the user why; rephrase the question or ask someone else if needed."}`,
-      };
-    }
+  if (reply.meta!.type === "reply") {
+    return { code: 0, output: `${reply.body}\n\n[huddle] Thread #${n} has a reply. To follow up: huddle send ${n} "<text>".` };
   }
+  const reason = reply.meta!.reason ?? "refused";
+  return {
+    code: 3,
+    output: `[huddle] Their agent cannot reply (reason: ${reason}, thread #${n}):\n\n${reply.body}\n\n[huddle] ${declineHint(reason, n)}`,
+  };
 }
 
 export function timeoutResult(t: Thread): WaitResult {
   return {
     code: 2,
-    output: `[huddle] Timed out waiting; thread #${t.number} (${t.url}) has no reply yet. Work on things that do not depend on the answer, then check with huddle wait ${t.number} or huddle inbox.`,
+    output: `[huddle] Timed out waiting; thread #${t.number} (${t.url}) has no reply yet. Work on things that do not depend on the reply, then check later with huddle wait ${t.number}.`,
   };
 }
 
@@ -66,12 +56,12 @@ export interface WaitOptions {
   now?: () => number;
 }
 
-/** Polls the thread until the asker's latest message gets a reply, or times out. */
-export async function waitForReply(t: Transport, number: number, waitSec: number, o: WaitOptions = {}): Promise<WaitResult> {
+/** Polls the thread until the sender's latest message gets a reply, or times out; `waitSec` undefined waits indefinitely. */
+export async function waitForReply(t: Transport, number: number, waitSec: number | undefined, o: WaitOptions = {}): Promise<WaitResult> {
   const now = o.now ?? Date.now;
   const sleep = o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const pollMs = o.pollMs ?? 15_000;
-  const deadline = now() + waitSec * 1000;
+  const deadline = waitSec === undefined ? Infinity : now() + waitSec * 1000;
   let failures = 0;
   for (;;) {
     let thread: Thread;
@@ -87,7 +77,7 @@ export async function waitForReply(t: Transport, number: number, waitSec: number
       continue;
     }
     const c = classifyReply(thread);
-    if (!c) throw new HuddleError(`Thread #${number} is not a huddle question.`);
+    if (!c) throw new HuddleError(`Thread #${number} is not a huddle message thread.`);
     if (c.reply) {
       const r = formatReply(thread, c.reply);
       return { ...r, output: r.output + (await humanNote(thread, c.awaiting, t)) };
