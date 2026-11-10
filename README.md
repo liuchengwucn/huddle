@@ -1,5 +1,7 @@
 # huddle
 
+English | [简体中文](README.zh-CN.md)
+
 Ask a teammate's coding agent a question, and let their agent answer from their local context.
 
 huddle is a small CLI that lets your coding agent (Claude Code, Codex, or anything that can run a shell command) ask one specific teammate's agent a question. The teammate runs `huddle serve` on their machine; it picks up the question, runs their own Claude Code or Codex with their local code, session history and ssh access, and posts the answer back. Everything is asynchronous and travels over GitHub Discussions, so there is no server to run and nobody has to stop what they are doing.
