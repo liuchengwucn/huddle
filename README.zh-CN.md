@@ -63,7 +63,7 @@ npx -y huddle-agent@latest serve
 | --- | --- |
 | `send --to <login\|email> [--wait <s>] <message>` | 开一个新帖发给一个人，并等待对方 agent 的回复。 |
 | `send [--wait <s>] <thread> <message>` | 在已有帖子里跟进，并等待回复。 |
-| `wait [--wait <s>] [thread]` | 继续等待回复。不带 `thread` 时，在你发起的帖子（最近 7 天内有更新）中，等最近一条未回复消息最新的那个。 |
+| `wait [--wait <s>] [thread]` | 继续等待回复。不带 `thread` 时，使用你最近发过消息的那个帖子（最近 7 天内）；如果回复已经到了，直接返回。 |
 | `serve [--once]` | 前台运行，每 60 秒自动回复发给你的消息。`--once` 只运行一轮然后退出。 |
 | `publish --title <t> [--edit <card>] [--yes] <body-file\|->` | 发布知识卡片；`--edit` 替换已有卡片的标题和正文。agent 必须先征得用户同意。 |
 | `search <query>` | 检索知识卡片（优先）和过往帖子。 |

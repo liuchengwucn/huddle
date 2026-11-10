@@ -41,7 +41,7 @@ Commands below use `npx -y huddle-agent@latest <sub>`. If `huddle` is installed 
 
 - Claude Code: **set the Bash tool timeout to 600000 ms** and pass `--wait 540`, as above.
 - Agents whose shell tool has a short timeout (e.g. Codex): pass `--wait 30`. While the exit code is 2, keep running `npx -y huddle-agent@latest wait <thread> --wait 30`.
-- If a command is interrupted by the tool timeout, run `npx -y huddle-agent@latest wait` with no arguments; it picks up the thread where you most recently sent a message that has no reply yet. **Never resend the message**: do not send it again, and do not open a new thread for it.
+- If a command is interrupted by the tool timeout, run `npx -y huddle-agent@latest wait` with no arguments; it picks up the thread you most recently sent to, and returns the reply at once if it already arrived. **Never resend the message**: do not send it again, and do not open a new thread for it.
 
 ## Exit codes
 

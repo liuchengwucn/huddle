@@ -66,19 +66,22 @@ export async function followUp(c: Ctx, ref: string, message: string, o: { wait?:
   return emit(await waitForReply(c.transport, t.number, o.wait, w));
 }
 
-/** Among open threads I started (updated in the last 7 days) whose latest message awaits a reply, the one with the most recently sent message. */
-async function latestAwaiting(c: Ctx): Promise<Thread> {
+/**
+ * Among threads I started (updated in the last 7 days), the one where I sent a message most recently.
+ * It may already have a reply or be closed: an interrupted send must still get its outcome, which waitForReply returns at once.
+ */
+async function latestSent(c: Ctx): Promise<Thread> {
   const threads = await c.transport.listUpdatedThreads("messages", new Date(Date.now() - 7 * 86400_000));
   let best: { t: Thread; at: number } | null = null;
   for (const t of threads) {
-    if (t.closed || !sameLogin(t.author, c.me)) continue;
+    if (!sameLogin(t.author, c.me)) continue;
     const s = classifyReply(t);
-    if (s?.status !== "pending") continue;
+    if (!s) continue;
     const at = s.awaiting.createdAt.getTime();
     if (!best || at > best.at) best = { t, at };
   }
   const t = best?.t;
-  if (!t) throw new HuddleError("No thread of yours is awaiting a reply (last 7 days). Pass a thread number.");
+  if (!t) throw new HuddleError("You have sent no message in the last 7 days. Pass a thread number.");
   return t;
 }
 
@@ -86,7 +89,7 @@ export async function waitCmd(c: Ctx, ref: string | undefined, o: { wait?: numbe
   let n: number;
   if (ref !== undefined) n = parseThreadRef(ref, c.slug);
   else {
-    const t = await latestAwaiting(c);
+    const t = await latestSent(c);
     note(`Waiting on #${t.number} ${t.url}`);
     n = t.number;
   }

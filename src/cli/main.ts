@@ -63,7 +63,7 @@ program
 
 program
   .command("wait")
-  .description(`Keep waiting for a reply; without a thread, waits on your latest thread still awaiting one (${EXIT_CODES})`)
+  .description(`Keep waiting for a reply; without a thread, uses the thread you most recently sent to (${EXIT_CODES})`)
   .argument("[thread]")
   .option("--wait <seconds>", "maximum seconds to wait (default: until a reply arrives)", seconds)
   .action(action(async (ref: string | undefined, o: { wait?: number }) => sender.waitCmd(await ctx(), ref, o)));

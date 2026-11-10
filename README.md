@@ -63,7 +63,7 @@ Use `huddle` if installed globally, or `npx -y huddle-agent@latest` otherwise. `
 | --- | --- |
 | `send --to <login\|email> [--wait <s>] <message>` | Open a new thread to one person and wait for their agent's reply. |
 | `send [--wait <s>] <thread> <message>` | Follow up in an existing thread and wait for the reply. |
-| `wait [--wait <s>] [thread]` | Keep waiting for a reply. Without a thread, waits on your thread (updated in the last 7 days) whose latest unanswered message is the newest. |
+| `wait [--wait <s>] [thread]` | Keep waiting for a reply. Without a thread, uses the thread you most recently sent to (last 7 days); if the reply already arrived it is returned at once. |
 | `serve [--once]` | Run in the foreground and reply automatically to messages addressed to you, every 60 seconds. `--once` runs one round and exits. |
 | `publish --title <t> [--edit <card>] [--yes] <body-file\|->` | Publish a knowledge card, or replace the title and body of an existing one with `--edit`. Agents must get the user's consent first. |
 | `search <query>` | Search knowledge cards (first) and past threads. |

@@ -108,28 +108,41 @@ describe("waitCmd", () => {
     expect(out).toContain("because");
   });
 
-  it("without a thread, picks the thread whose awaited message I sent most recently", async () => {
+  it("without a thread, picks the thread where I sent most recently", async () => {
     const t = new FakeTransport("bob", Date.now());
     const a = await t.createThread("messages", "a", "a?", { type: "message", to: "alice" });
     await t.createThread("messages", "b", "b?", { type: "message", to: "alice" });
-    const c = await t.createThread("messages", "c", "c?", { type: "message", to: "alice" });
-    const e = await t.createThread("messages", "e", "e?", { type: "message", to: "alice" });
+    await t.createThread("messages", "c", "c?", { type: "message", to: "alice" });
     await t.as("carol").createThread("messages", "d", "d?", { type: "message", to: "bob" });
-    await t.as("alice").reply(c, "done", { type: "reply", re: c.id });
     await t.as("bob").reply(a, "a again", { type: "message" }); // older thread, newest sent message: wins
-    t.closeThread(e);
     await t.as("alice").reply(a, "human-ish", { type: "message" }); // not mine: ignored
     expect(await waitCmd(mkCtx(t.as("bob"), "bob"), undefined, { wait: 0 })).toBe(2);
     expect(err).toContain("[huddle] Waiting on #1 https://fake.test/discussions/1");
     expect(out).toContain("thread #1");
   });
 
-  it("without a thread, errors when nothing is awaiting a reply", async () => {
+  it("without a thread, returns a reply that arrived before wait was run", async () => {
     const t = new FakeTransport("bob", Date.now());
+    await t.createThread("messages", "old", "old?", { type: "message", to: "alice" });
     const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
     await t.as("alice").reply(th, "because", { type: "reply", re: th.id });
+    expect(await waitCmd(mkCtx(t.as("bob"), "bob"), undefined, { wait: 0 })).toBe(0);
+    expect(out).toContain("because");
+  });
+
+  it("without a thread, reports a closed latest thread", async () => {
+    const t = new FakeTransport("bob", Date.now());
+    await t.createThread("messages", "old", "old?", { type: "message", to: "alice" });
+    const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
+    t.closeThread(th);
+    expect(await waitCmd(mkCtx(t.as("bob"), "bob"), undefined, { wait: 0 })).toBe(3);
+  });
+
+  it("without a thread, errors when I sent nothing", async () => {
+    const t = new FakeTransport("bob", Date.now());
+    await t.as("carol").createThread("messages", "d", "d?", { type: "message", to: "bob" });
     await expect(waitCmd(mkCtx(t.as("bob"), "bob"), undefined, { wait: 0 })).rejects.toThrow(
-      "No thread of yours is awaiting a reply (last 7 days). Pass a thread number.",
+      "You have sent no message in the last 7 days. Pass a thread number.",
     );
   });
 });
