@@ -292,6 +292,63 @@ describe("respondOnce", () => {
     expect(calls).toHaveLength(0);
   });
 
+  it("posts a retraction notice instead of re-running the agent when the owner deletes the reply", async () => {
+    const { t, deps, calls, dir } = setup();
+    const th = await sendAlice(t);
+    await respondOnce(deps);
+    const reply = (await t.getThread(th.number)).messages[1];
+    t.deleteComment(reply.id);
+    const logs: string[] = [];
+    await respondOnce({ ...deps, log: (m) => logs.push(m) });
+    expect(calls).toHaveLength(1);
+    const msgs = (await t.getThread(th.number)).messages;
+    expect(msgs).toHaveLength(2);
+    expect(msgs[1].meta).toEqual({ type: "decline", re: th.id, reason: "refused" });
+    expect(msgs[1].body).toBe("@alice retracted the earlier automatic reply. If needed, contact @alice directly.");
+    expect((await readRecentAudit(1, new Date(), dir)).at(-1)).toMatchObject({ retraction: true, invokedAgent: false, postedType: "decline" });
+    expect(logs).toContain(`Reply on #${th.number} was deleted by the owner; posted a retraction notice instead of answering again.`);
+    await respondOnce(deps);
+    expect((await t.getThread(th.number)).messages).toHaveLength(2);
+  });
+
+  it("does nothing, and logs once, when the retraction notice is deleted too", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t);
+    await respondOnce(deps);
+    t.deleteComment((await t.getThread(th.number)).messages[1].id);
+    await respondOnce(deps);
+    t.deleteComment((await t.getThread(th.number)).messages[1].id);
+    const logs: string[] = [];
+    await respondOnce({ ...deps, log: (m) => logs.push(m) });
+    await respondOnce({ ...deps, log: (m) => logs.push(m) });
+    expect(calls).toHaveLength(1);
+    expect((await t.getThread(th.number)).messages).toHaveLength(1);
+    expect(logs.filter((l) => l.includes("retraction notice on #"))).toHaveLength(1);
+  });
+
+  it("replies normally to a later follow-up after a retraction", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t);
+    await respondOnce(deps);
+    t.deleteComment((await t.getThread(th.number)).messages[1].id);
+    await respondOnce(deps);
+    const f = await t.as("bob").reply(th, "one more", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps);
+    expect(calls).toHaveLength(2);
+    expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "reply", re: f.id });
+  });
+
+  it("answers again when a deleted reply has no local audit record", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t);
+    await respondOnce(deps);
+    t.deleteComment((await t.getThread(th.number)).messages[1].id);
+    await respondOnce({ ...deps, auditDir: mkdtempSync(path.join(tmpdir(), "huddle-respond-")) });
+    expect(calls).toHaveLength(2);
+    expect((await t.getThread(th.number)).messages[1].meta).toEqual({ type: "reply", re: th.id });
+  });
+
   it("ends serve when beforeRound rejects", async () => {
     const { deps } = setup();
     await expect(serve({ ...deps, beforeRound: async () => { throw new PublicRepoError("went public"); } }, 1)).rejects.toThrow("went public");

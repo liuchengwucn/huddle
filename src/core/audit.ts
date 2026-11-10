@@ -22,6 +22,7 @@ export interface AuditEntry {
   postedText: string | null;
   redactions: RedactionHit[];
   discardReason: DiscardReason | null;
+  retraction?: boolean;       // the post was a retraction notice after the owner deleted an automatic reply
   durationMs: number;
   error?: string;
 }

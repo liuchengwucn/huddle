@@ -60,6 +60,7 @@ export async function respondOnce(deps: RespondDeps): Promise<void> {
 }
 
 const warnedNoWrite = new Set<number>();
+const warnedRetracted = new Set<string>();
 const warnedCorrupted = new Set<string>();
 function warnCorrupted(t: Thread, log: (m: string) => void): void {
   for (const m of t.messages) {
@@ -92,10 +93,23 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
     audit.push(e);
   };
 
-  const postDecline = async (thread: Thread, reason: DeclineReason, text: string) => {
+  const postDecline = async (thread: Thread, reason: DeclineReason, text: string, extra: Partial<AuditEntry> = {}) => {
     await deps.transport.reply(thread, text, { type: "decline", re: p.last.id, reason });
-    await write({ ...base, time: now().toISOString(), invokedAgent: false, sessionId: null, resumed: false, postedType: "decline", postedText: text, redactions: [], discardReason: null, durationMs: 0 });
+    await write({ ...base, time: now().toISOString(), invokedAgent: false, sessionId: null, resumed: false, postedType: "decline", postedText: text, redactions: [], discardReason: null, durationMs: 0, ...extra });
   };
+
+  // This machine already posted for this message, yet the thread is pending again: the owner deleted the post.
+  const posted = audit.filter((e) => e.threadId === t.id && e.re === p.last.id && e.postedType !== null);
+  if (posted.length) {
+    if (!posted.some((e) => e.retraction)) {
+      await postDecline(t, "refused", `@${deps.me} retracted the earlier automatic reply. If needed, contact @${deps.me} directly.`, { retraction: true });
+      log(`Reply on #${t.number} was deleted by the owner; posted a retraction notice instead of answering again.`);
+    } else if (!warnedRetracted.has(`${t.id}:${p.last.id}`)) {
+      warnedRetracted.add(`${t.id}:${p.last.id}`);
+      log(`The retraction notice on #${t.number} was deleted too; leaving the thread alone.`);
+    }
+    return;
+  }
 
   if (threadRoundsUsed(t, deps.me) >= limits.rounds_per_thread) {
     await postDecline(t, "rate_limited", `This thread has reached the automatic-reply limit of ${limits.rounds_per_thread} rounds; @${deps.me} will handle it personally.`);
