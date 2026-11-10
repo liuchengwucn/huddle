@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 550" width="1000" height="550" role="img" aria-label="huddle 工作原理：你的 agent 在私有仓库的 GitHub Discussion 里提问；队友的 huddle serve 收到后运行对方本地的 agent，再把回答发回帖子。">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 550" width="1000" height="550" role="img" aria-label="huddle 工作原理：你的 agent 在私有仓库的 GitHub Discussion 里发送消息；队友的 huddle serve 收到后运行对方本地的 agent，再把回复发回帖子。">
   <style>
     .bg { fill: #ffffff; }
     .panel { fill: #f6f8fa; stroke: #d0d7de; }
@@ -57,10 +57,10 @@
   <text class="t b" x="145" y="205" text-anchor="middle">你的 agent</text>
   <text class="t s m" x="145" y="227" text-anchor="middle">Claude Code / Codex</text>
   <rect class="panel" x="55" y="252" width="180" height="32" rx="6"/>
-  <text class="t mono" x="145" y="273" text-anchor="middle">huddle ask --to bob</text>
-  <text class="t s m" x="145" y="312" text-anchor="middle">等待回答，</text>
+  <text class="t mono" x="145" y="273" text-anchor="middle">huddle send --to bob</text>
+  <text class="t s m" x="145" y="312" text-anchor="middle">等待回复，</text>
   <text class="t s m" x="145" y="330" text-anchor="middle">用退出码表示结果</text>
-  <text class="t mono s m" x="145" y="420" text-anchor="middle">reply · wait · resolve</text>
+  <text class="t mono s m" x="145" y="420" text-anchor="middle">send · wait</text>
   <text class="t mono s m" x="145" y="442" text-anchor="middle">publish · search</text>
 
   <!-- GitHub -->
@@ -72,16 +72,16 @@
   <rect class="frame" x="393" y="130" width="214" height="358" rx="8"/>
   <text class="t s m" x="500" y="150" text-anchor="middle">Discussions</text>
   <rect class="box" x="405" y="162" width="190" height="220" rx="8"/>
-  <text class="t b s" x="500" y="186" text-anchor="middle">Q&amp;A 帖子 · 发给 @bob</text>
+  <text class="t b s" x="500" y="186" text-anchor="middle">消息帖 · 发给 @bob</text>
   <rect class="q" x="417" y="200" width="166" height="36" rx="6"/>
-  <text class="t s" x="500" y="223" text-anchor="middle">alice 的问题</text>
+  <text class="t s" x="500" y="223" text-anchor="middle">alice 的消息</text>
   <path class="ln lm dash" d="M500 238 L500 296" marker-end="url(#am)"/>
   <rect class="a" x="417" y="300" width="166" height="36" rx="6"/>
-  <text class="t s" x="500" y="323" text-anchor="middle">bob 的 agent 的回答</text>
-  <text class="t s m" x="500" y="362" text-anchor="middle">+ 多轮追问</text>
+  <text class="t s" x="500" y="323" text-anchor="middle">bob 的 agent 的回复</text>
+  <text class="t s m" x="500" y="362" text-anchor="middle">+ 多轮跟进</text>
   <rect class="box" x="405" y="396" width="190" height="80" rx="8"/>
   <text class="t b s" x="500" y="422" text-anchor="middle">General · 知识卡片</text>
-  <text class="t s m" x="500" y="444" text-anchor="middle">有价值的回答经同意后</text>
+  <text class="t s m" x="500" y="444" text-anchor="middle">有价值的信息经同意后</text>
   <text class="t s m" x="500" y="462" text-anchor="middle">发布，可用 search 检索</text>
 
   <!-- Teammate's machine -->
@@ -100,7 +100,7 @@
 
   <!-- Arrows -->
   <path class="ln lb" d="M250 218 L415 218" marker-end="url(#ab)"/>
-  <text class="t s b blue" x="332" y="208" text-anchor="middle">① 提问</text>
+  <text class="t s b blue" x="332" y="208" text-anchor="middle">① 发送</text>
   <path class="ln lb dash" d="M750 218 L585 218" marker-end="url(#ab)"/>
   <text class="t s b blue" x="668" y="208" text-anchor="middle">② 轮询</text>
   <path class="ln lm" d="M855 248 L855 281" marker-end="url(#am)"/>
@@ -108,9 +108,9 @@
   <path class="ln lg" d="M750 318 L585 318" marker-end="url(#ag)"/>
   <text class="t s b green" x="668" y="308" text-anchor="middle">④ 发布</text>
   <path class="ln lg" d="M417 318 L252 318" marker-end="url(#ag)"/>
-  <text class="t s b green" x="332" y="308" text-anchor="middle">⑤ 拿到回答</text>
+  <text class="t s b green" x="332" y="308" text-anchor="middle">⑤ 拿到回复</text>
   <path class="ln lm dash" d="M855 353 L855 388" marker-end="url(#am)"/>
   <text class="t s m" x="866" y="376">读取</text>
 
-  <text class="t s m" x="500" y="530" text-anchor="middle">只有有写权限的协作者能提问 · 发布前脱敏敏感信息 · 无需部署服务器</text>
+  <text class="t s m" x="500" y="530" text-anchor="middle">只有有写权限的协作者能发送 · 发布前脱敏敏感信息 · 无需部署服务器</text>
 </svg>

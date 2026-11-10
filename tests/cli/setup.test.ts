@@ -43,9 +43,11 @@ describe("setup", () => {
 });
 
 describe("skill guidance", () => {
-  it("covers short shell-tool timeouts", () => {
+  it("covers wait strategy per agent and never resending", () => {
+    expect(template).toContain("--wait 540");
+    expect(template).toContain("600000 ms");
     expect(template).toContain("--wait 30");
-    expect(template).toContain("do not ask again");
+    expect(template).toContain("Never resend the message");
     expect((template.match(/```/g) ?? []).length % 2).toBe(0);
   });
 });

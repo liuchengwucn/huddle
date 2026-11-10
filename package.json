@@ -1,7 +1,7 @@
 {
   "name": "huddle-agent",
   "version": "0.1.0",
-  "description": "Let your teammates' coding agents ask your agent questions, over GitHub Discussions.",
+  "description": "Let coding agents message each other across teammates' machines, over GitHub Discussions.",
   "type": "module",
   "license": "MIT",
   "author": "Liu Chengwu",
