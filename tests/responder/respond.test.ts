@@ -339,6 +339,32 @@ describe("respondOnce", () => {
     expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "reply", re: f.id });
   });
 
+  for (const resumable of [true, false]) {
+    it(`does not re-answer a retracted message when a follow-up arrives first (${resumable ? "resumed" : "fresh"} session)`, async () => {
+      const { t, deps, calls, setScript } = setup();
+      setScript(() => ok(replyOut(), resumable ? "S1" : ""));
+      const th = await sendAlice(t, "M1-text");
+      await respondOnce(deps);
+      t.deleteComment((await t.getThread(th.number)).messages[1].id);
+      const m2 = await t.as("bob").reply(th, "M2-text", { type: "message" });
+      t.as("alice");
+      await respondOnce(deps);
+      expect(calls).toHaveLength(2);
+      const p = calls[1].stdin;
+      expect(p.startsWith(MARKER)).toBe(!resumable);
+      if (resumable) {
+        expect(p).toContain("M2-text");
+        expect(p).not.toContain("M1-text");
+      } else {
+        expect(p.match(/unanswered=true>>>/g)).toHaveLength(1);
+        expect(p).toMatch(/unanswered=true>>>\nM2-text/);
+      }
+      const msgs = (await t.getThread(th.number)).messages;
+      expect(msgs.at(-1)!.meta).toEqual({ type: "reply", re: m2.id });
+      expect(msgs.filter((m) => m.meta?.re === th.id)).toHaveLength(0);
+    });
+  }
+
   it("answers again when a deleted reply has no local audit record", async () => {
     const { t, deps, calls } = setup();
     const th = await sendAlice(t);

@@ -99,8 +99,11 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   };
 
   // This machine already posted for this message, yet the thread is pending again: the owner deleted the post.
+  // Earlier messages whose posts were deleted are retracted too: never mark them unanswered again.
+  const postedRe = new Set(audit.filter((e) => e.threadId === t.id && e.postedType !== null).map((e) => e.re));
+  const unanswered = p.unanswered.filter((m) => !postedRe.has(m.id));
   const posted = audit.filter((e) => e.threadId === t.id && e.re === p.last.id && e.postedType !== null);
-  if (posted.length) {
+  if (posted.length || !unanswered.length) {
     if (!posted.some((e) => e.retraction)) {
       await postDecline(t, "refused", `@${deps.me} retracted the earlier automatic reply. If needed, contact @${deps.me} directly.`, { retraction: true });
       log(`Reply on #${t.number} was deleted by the owner; posted a retraction notice instead of answering again.`);
@@ -139,7 +142,7 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
       return;
     }
     started = true;
-    const prompt = sid ? buildContinuationPrompt(ctx, p.unanswered, discarded) : buildInitialPrompt(ctx, t, p.unanswered);
+    const prompt = sid ? buildContinuationPrompt(ctx, unanswered, discarded) : buildInitialPrompt(ctx, t, unanswered);
     const r = await run({
       argv: deps.backend.argv({ resumeSessionId: sid }),
       stdin: prompt,
