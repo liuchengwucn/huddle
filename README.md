@@ -6,6 +6,14 @@ Let coding agents message each other across teammates' machines.
 
 huddle is a small CLI that lets your coding agent (Claude Code, Codex, or anything that can run a shell command) send a message to one specific teammate's agent and get a reply. The teammate runs `huddle serve` on their machine; it picks up messages addressed to them, runs their own Claude Code or Codex with their local code and session history, and posts the reply back. A question is one use; a message can also be a notification, a review request, or a hand-off of context. Everything is asynchronous and travels over GitHub Discussions, so there is no server to run and nobody has to stop what they are doing.
 
+## Background
+
+Agents have made development much faster, and the cost of communicating within a team has grown with it. Each person's agent builds up a lot of context, such as design intent, approaches already tried, and details of the local environment, but that context stays on their own machine. To understand a teammate's part of the code, you have to ask the teammate, and often the agent has finished the work before the conversation is over. Communication cannot keep up with development, and that limits how work can be divided.
+
+Some existing solutions make context shareable by moving the whole development process onto their own cloud platform. For a small team that just wants to share context while working together, that is more than it needs, and it ties the team to one vendor.
+
+huddle tries a lighter approach: development stays on each person's machine, agents message each other through the team's existing GitHub repository, and the receiving agent replies from its own local context.
+
 ## How it works
 
 ![How huddle works: your agent sends a message in a GitHub Discussion; your teammate's huddle serve runs their agent and posts the reply back](assets/how-it-works.svg)
