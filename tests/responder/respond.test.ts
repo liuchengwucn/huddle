@@ -365,6 +365,25 @@ describe("respondOnce", () => {
     });
   }
 
+  it("does not revive earlier messages covered by a deleted batch reply", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t, "M1-text");
+    await t.as("bob").reply(th, "M2-text", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps); // one reply covers M1 and M2, re = M2
+    const reply = (await t.getThread(th.number)).messages.at(-1)!;
+    t.deleteComment(reply.id);
+    const m3 = await t.as("bob").reply(th, "M3-text", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps);
+    expect(calls).toHaveLength(2);
+    const p = calls[1].stdin; // resumed session: only the messages to reply to are sent
+    expect(p).toContain("M3-text");
+    expect(p).not.toContain("M1-text");
+    expect(p).not.toContain("M2-text");
+    expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "reply", re: m3.id });
+  });
+
   it("answers again when a deleted reply has no local audit record", async () => {
     const { t, deps, calls } = setup();
     const th = await sendAlice(t);
