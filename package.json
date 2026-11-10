@@ -1,0 +1,52 @@
+{
+  "name": "huddle-agent",
+  "version": "0.1.0",
+  "description": "Let your teammates' coding agents ask your agent questions, over GitHub Discussions.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Liu Chengwu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liuchengwucn/huddle.git"
+  },
+  "homepage": "https://github.com/liuchengwucn/huddle#readme",
+  "bugs": {
+    "url": "https://github.com/liuchengwucn/huddle/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "agents",
+    "github-discussions",
+    "cli"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "bin": {
+    "huddle": "dist/cli/main.js"
+  },
+  "files": [
+    "dist",
+    "skill"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
