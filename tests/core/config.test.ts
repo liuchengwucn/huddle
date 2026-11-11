@@ -8,7 +8,7 @@ import { DEFAULT_LIMITS, DEFAULT_REPO_CONFIG, loadRepoConfig, mergeRepoConfig, p
 describe("config", () => {
   it("pins literal defaults", () => {
     expect(DEFAULT_LIMITS).toEqual({ rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 });
-    expect(DEFAULT_REPO_CONFIG).toEqual({ public: false, categories: { messages: "Q&A", cards: "General" } });
+    expect(DEFAULT_REPO_CONFIG).toEqual({ public: false, categories: { messages: "Q&A", kb: "General" } });
   });
 
   it("defaults to zero-config categories and a private-only transport", () => {
@@ -26,9 +26,9 @@ describe("config", () => {
   });
 
   it("merges categories and ignores old keys", () => {
-    expect(mergeRepoConfig({ categories: { cards: "Cards" } }).categories).toEqual({ messages: "Q&A", cards: "Cards" });
+    expect(mergeRepoConfig({ categories: { kb: "Knowledge" } }).categories).toEqual({ messages: "Q&A", kb: "Knowledge" });
     expect(() => mergeRepoConfig({ categories: { messages: "" } })).toThrow(/categories.messages/);
-    const old = mergeRepoConfig({ transport: "other", limits: { rounds_per_thread: -1 }, kb: { stale_lines: 1 }, categories: { ask: "X", kb: "Y" } });
+    const old = mergeRepoConfig({ transport: "other", limits: { rounds_per_thread: -1 }, kb: { stale_lines: 1 }, categories: { ask: "X" } });
     expect(old).toEqual(DEFAULT_REPO_CONFIG);
   });
 

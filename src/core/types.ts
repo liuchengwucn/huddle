@@ -1,5 +1,5 @@
-export type Category = "messages" | "cards";
-export type MsgType = "message" | "reply" | "decline" | "card";
+export type Category = "messages" | "kb";
+export type MsgType = "message" | "reply" | "decline" | "kb";
 export type DeclineReason = "low_confidence" | "refused" | "timeout" | "error" | "rate_limited";
 export type ResponderType = "reply" | "decline";
 

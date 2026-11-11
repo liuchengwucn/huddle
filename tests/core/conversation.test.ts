@@ -74,12 +74,12 @@ describe("conversation", () => {
 
   it("returns null for non-huddle threads and openings without to", async () => {
     const t = new FakeTransport("bob");
-    await t.createThread("cards", "card", "body", { type: "card" });
+    await t.createThread("kb", "entry", "body", { type: "kb" });
     expect(classifyReply(await t.getThread(1))).toBeNull();
     await t.createThread("messages", "q", "body", { type: "message" });
     expect(messageMeta(await t.getThread(2))).toBeNull();
     expect(classifyReply(await t.getThread(2))).toBeNull();
-    await t.createThread("cards", "q", "body", { type: "message", to: "alice" });
+    await t.createThread("kb", "q", "body", { type: "message", to: "alice" });
     expect(messageMeta(await t.getThread(3))).toBeNull();
   });
 });

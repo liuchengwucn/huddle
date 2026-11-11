@@ -5,5 +5,5 @@ export const signature = (line: string, extra = ""): string => `\n\n---${extra}\
 
 const TRAILING = /\n*---\n(?:[^\n]*\n)*?— [^\n]* via \[huddle\]\([^)\n]*\)\s*$/;
 
-/** Removes a trailing huddle footer, e.g. from a card body copied back for `publish --edit`, or for a search snippet. */
+/** Removes a trailing huddle footer, e.g. from a knowledge base entry body copied back for `publish --edit`, or for a search snippet. */
 export const stripSignature = (text: string): string => text.replace(TRAILING, "");

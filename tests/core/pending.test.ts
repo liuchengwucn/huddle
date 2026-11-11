@@ -36,7 +36,7 @@ describe("pendingFor", () => {
     const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
     t.closeThread(th);
     expect(pendingFor(await t.getThread(1), "alice")).toBeNull();
-    await t.createThread("cards", "q2", "why?", { type: "message", to: "alice" });
+    await t.createThread("kb", "q2", "why?", { type: "message", to: "alice" });
     expect(pendingFor(await t.getThread(2), "alice")).toBeNull();
   });
 

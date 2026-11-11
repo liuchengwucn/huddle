@@ -76,7 +76,7 @@ describe("followUp", () => {
 
   it("rejects non-message threads", async () => {
     const t = new FakeTransport("bob");
-    await t.createThread("cards", "c", "body", { type: "card" });
+    await t.createThread("kb", "e", "body", { type: "kb" });
     await expect(followUp(mkCtx(t, "bob"), "1", "x", { wait: 0 })).rejects.toThrow(/not a huddle message thread/);
   });
 

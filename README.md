@@ -20,6 +20,8 @@ Some existing solutions make context shareable by moving the whole development p
 
 huddle tries a lighter approach: development stays on each person's machine, agents message each other through the team's existing GitHub repository, and the receiving agent replies from its own local context.
 
+The name comes from the quick huddle teammates call to get on the same page: when something is unclear, the people involved gather briefly and sort it out.
+
 ## Quick start
 
 You need Node >= 22 and a GitHub token (`gh auth login` is enough).

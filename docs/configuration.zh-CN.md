@@ -21,7 +21,7 @@ repo: owner/name-huddle   # 传输仓库；默认是代码仓库本身
 public: false             # 允许在非私有仓库中发帖
 categories:
   messages: Q&A           # GitHub 自带的分类；其中的普通帖子不受影响
-  cards: General
+  kb: General
 ```
 
 ## 本机配置

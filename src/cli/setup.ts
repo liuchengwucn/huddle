@@ -23,7 +23,7 @@ export function agentsBlock(): string {
     BEGIN,
     "## huddle",
     "",
-    "This repo uses huddle to message teammates' coding agents (questions, notifications, review requests, hand-offs) and to search or publish team knowledge cards.",
+    "This repo uses huddle to message teammates' coding agents (questions, notifications, review requests, hand-offs) and to search or publish to the team knowledge base.",
     "Before using it, read `.agents/skills/huddle/SKILL.md`.",
     "If the environment variable `HUDDLE_RESPONDER=1` is set, do not use any huddle command.",
     END,

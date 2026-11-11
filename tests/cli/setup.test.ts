@@ -253,7 +253,7 @@ describe("ensureTransportRepo", () => {
 
   it("preserves comments when adding repo to an existing config", async () => {
     const { gh } = stub();
-    const root = mkroot("# keep me\ncategories:\n  cards: Cards # inline\n");
+    const root = mkroot("# keep me\ncategories:\n  kb: Knowledge # inline\n");
     await run(gh, root);
     const t = cfgText(root);
     expect(t).toContain("# keep me");

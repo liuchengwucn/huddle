@@ -21,7 +21,7 @@ repo: owner/name-huddle   # transport repo; default: the code repo itself
 public: false             # allow threads in a non-private repo
 categories:
   messages: Q&A           # GitHub's built-in categories; ordinary posts there are tolerated
-  cards: General
+  kb: General
 ```
 
 ## Machine config

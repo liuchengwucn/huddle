@@ -76,7 +76,7 @@ export class GitHubDiscussions implements Transport {
     ];
     const problems: string[] = [];
     const url = `https://github.com/${this.owner}/${this.repo}/discussions/categories/new`;
-    for (const name of [this.cfg.categories.messages, this.cfg.categories.cards]) {
+    for (const name of [this.cfg.categories.messages, this.cfg.categories.kb]) {
       if (!info.categories.some((c) => c.name === name)) problems.push(`Missing Discussion category "${name}": open ${url}, set the name to ${name}, and create it (any format except Announcement, where only maintainers can post).`);
     }
     return problems;
@@ -91,7 +91,7 @@ export class GitHubDiscussions implements Transport {
 
   private categoryOf(name: string): Category | null {
     if (name === this.cfg.categories.messages) return "messages";
-    if (name === this.cfg.categories.cards) return "cards";
+    if (name === this.cfg.categories.kb) return "kb";
     return null;
   }
 

@@ -80,7 +80,7 @@
   <text class="t s" x="500" y="323" text-anchor="middle">bob 的 agent 的回复</text>
   <text class="t s m" x="500" y="362" text-anchor="middle">+ 多轮跟进</text>
   <rect class="box" x="405" y="396" width="190" height="80" rx="8"/>
-  <text class="t b s" x="500" y="422" text-anchor="middle">General · 知识卡片</text>
+  <text class="t b s" x="500" y="422" text-anchor="middle">General · 知识库</text>
   <text class="t s m" x="500" y="444" text-anchor="middle">有价值的信息经同意后</text>
   <text class="t s m" x="500" y="462" text-anchor="middle">发布，可用 search 检索</text>
 

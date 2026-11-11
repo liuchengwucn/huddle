@@ -10,10 +10,10 @@ export interface RepoConfig {
   repo?: string;
   /** Allow threads in a public repository (visible to everyone). */
   public: boolean;
-  categories: { messages: string; cards: string };
+  categories: { messages: string; kb: string };
 }
 
-export const DEFAULT_REPO_CONFIG: RepoConfig = { public: false, categories: { messages: "Q&A", cards: "General" } };
+export const DEFAULT_REPO_CONFIG: RepoConfig = { public: false, categories: { messages: "Q&A", kb: "General" } };
 
 export interface Limits { rounds_per_thread: number; replies_per_hour: number; timeout_minutes: number }
 export const DEFAULT_LIMITS: Limits = { rounds_per_thread: 8, replies_per_hour: 20, timeout_minutes: 10 };
@@ -48,7 +48,7 @@ export function mergeRepoConfig(raw: Record<string, unknown> | null): RepoConfig
   const cats = r.categories ?? {};
   const cfg: RepoConfig = {
     public: false,
-    categories: { messages: cats.messages ?? DEFAULT_REPO_CONFIG.categories.messages, cards: cats.cards ?? DEFAULT_REPO_CONFIG.categories.cards } as RepoConfig["categories"],
+    categories: { messages: cats.messages ?? DEFAULT_REPO_CONFIG.categories.messages, kb: cats.kb ?? DEFAULT_REPO_CONFIG.categories.kb } as RepoConfig["categories"],
   };
   if (r.repo !== undefined) {
     if (typeof r.repo !== "string" || !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(r.repo)) {

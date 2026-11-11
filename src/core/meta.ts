@@ -2,7 +2,7 @@ import type { DeclineReason, Meta, MsgType } from "./types.js";
 
 const PREFIX = "<!-- huddle:v1 ";
 const SUFFIX = " -->";
-const TYPES: ReadonlySet<string> = new Set<MsgType>(["message", "reply", "decline", "card"]);
+const TYPES: ReadonlySet<string> = new Set<MsgType>(["message", "reply", "decline", "kb"]);
 const REASONS: ReadonlySet<string> = new Set<DeclineReason>([
   "low_confidence", "refused", "timeout", "error", "rate_limited",
 ]);

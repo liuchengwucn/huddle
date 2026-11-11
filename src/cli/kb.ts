@@ -25,32 +25,32 @@ async function confirm(question: string): Promise<boolean> {
   return /^y(es)?$/i.test(a.trim());
 }
 
-async function getCard(c: Ctx, ref: string): Promise<Thread> {
+async function getEntry(c: Ctx, ref: string): Promise<Thread> {
   const t = await c.transport.getThread(parseThreadRef(ref, c.slug));
-  if (t.category !== "cards" || t.messages[0]?.meta?.type !== "card") throw new HuddleError(`#${t.number} is not a huddle knowledge card.`);
+  if (t.category !== "kb" || t.messages[0]?.meta?.type !== "kb") throw new HuddleError(`#${t.number} is not a huddle knowledge base entry.`);
   return t;
 }
 
 export async function publish(c: Ctx, src: string, o: { title: string; edit?: string; yes?: boolean }): Promise<number> {
   assertNotResponder();
-  const card = o.edit !== undefined ? await getCard(c, o.edit) : null;
-  if (card && !card.viewerCanUpdate) throw new HuddleError(`You do not have permission to edit card #${card.number} (author or repo maintainer required).`);
+  const entry = o.edit !== undefined ? await getEntry(c, o.edit) : null;
+  if (entry && !entry.viewerCanUpdate) throw new HuddleError(`You do not have permission to edit knowledge base entry #${entry.number} (author or repo maintainer required).`);
   const body = stripSignature(await readBody(src));
-  if (!body.trim()) throw new HuddleError("Card body must not be empty");
+  if (!body.trim()) throw new HuddleError("Entry body must not be empty");
   if (!o.yes && src !== "-" && process.stdin.isTTY) {
     process.stderr.write(`\n# ${o.title}\n\n${body}\n\n`);
-    if (!(await confirm(card ? `Replace card #${card.number} with this?` : "Publish this card?"))) {
+    if (!(await confirm(entry ? `Replace knowledge base entry #${entry.number} with this?` : "Publish this to the knowledge base?"))) {
       out("Cancelled.");
       return 1;
     }
   }
-  if (card) {
-    await c.transport.updateThread(card, o.title, body + signature(`Updated by ${c.me}`), { type: "card" });
-    out(`Updated card #${card.number}: ${card.url}`);
+  if (entry) {
+    await c.transport.updateThread(entry, o.title, body + signature(`Updated by ${c.me}`), { type: "kb" });
+    out(`Updated knowledge base entry #${entry.number}: ${entry.url}`);
     return 0;
   }
-  const t = await c.transport.createThread("cards", o.title, body + signature(`Published by ${c.me}`), { type: "card" });
-  out(`Published card #${t.number}: ${t.url}`);
+  const t = await c.transport.createThread("kb", o.title, body + signature(`Published by ${c.me}`), { type: "kb" });
+  out(`Published to the knowledge base: #${t.number} ${t.url}`);
   return 0;
 }
 
@@ -62,7 +62,7 @@ export function snippet(text: string, max = 200): string {
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
 export async function search(c: Ctx, query: string): Promise<number> {
-  const results = await c.transport.search(query, ["cards", "messages"], false);
+  const results = await c.transport.search(query, ["kb", "messages"], false);
   const writeCache = new Map<string, Promise<boolean>>();
   const writer = (login: string | undefined): Promise<boolean> => {
     if (!login) return Promise.resolve(false);
@@ -74,25 +74,25 @@ export async function search(c: Ctx, query: string): Promise<number> {
     }
     return p;
   };
-  const cards: Thread[] = [];
+  const entries: Thread[] = [];
   const threads: Thread[] = [];
   for (const t of results) {
-    if (t.category === "cards" && t.messages[0]?.meta?.type === "card") {
-      if (await writer(t.author)) cards.push(t);
+    if (t.category === "kb" && t.messages[0]?.meta?.type === "kb") {
+      if (await writer(t.author)) entries.push(t);
     } else if (t.category === "messages") {
       const to = messageMeta(t)?.to;
       if (to && (await writer(t.author)) && (await writer(to))) threads.push(t);
     }
   }
-  const other = results.filter((t) => !cards.includes(t) && !threads.includes(t));
-  const ordered = [...cards, ...threads, ...other].slice(0, 8);
+  const other = results.filter((t) => !entries.includes(t) && !threads.includes(t));
+  const ordered = [...entries, ...threads, ...other].slice(0, 8);
   if (!ordered.length) {
-    out("No related cards or past threads found.");
+    out("No related knowledge base entries or past threads found.");
     return 0;
   }
   for (const t of ordered) {
-    if (cards.includes(t)) {
-      out(`[Card #${t.number}] (updated ${day(t.editedAt)}) ${t.title}\n  ${t.url}\n  ${snippet(t.messages[0].body)}`);
+    if (entries.includes(t)) {
+      out(`[KB #${t.number}] (updated ${day(t.editedAt)}) ${t.title}\n  ${t.url}\n  ${snippet(t.messages[0].body)}`);
     } else if (threads.includes(t)) {
       const to = messageMeta(t)?.to;
       const reply = t.messages.filter((m) => m.meta?.type === "reply" && sameLogin(m.author, to)).at(-1);

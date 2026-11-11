@@ -76,16 +76,16 @@ program
 
 program
   .command("publish")
-  .description("Publish a knowledge card, or replace one with --edit (the agent must get the user's consent first)")
-  .requiredOption("--title <title>", "card title")
-  .option("--edit <card>", "replace the title and body of an existing card")
+  .description("Publish to the knowledge base, or replace an existing entry with --edit (the agent must get the user's consent first)")
+  .requiredOption("--title <title>", "entry title")
+  .option("--edit <entry>", "replace the title and body of an existing entry")
   .option("--yes", "skip confirmation")
   .argument("<body>", "body file, or - to read from stdin")
   .action(action(async (src: string, o: { title: string; edit?: string; yes?: boolean }) => { assertNotResponder(); return kb.publish(await ctx(), src, o); }));
 
 program
   .command("search")
-  .description("Search knowledge cards and past threads")
+  .description("Search the knowledge base and past threads")
   .argument("<query>")
   .action(action(async (q: string) => kb.search(await ctx(), q)));
 

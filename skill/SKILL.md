@@ -1,6 +1,6 @@
 ---
 name: huddle
-description: Send a message to a teammate's coding agent (a question, a notification, a review request, a hand-off of context) and get its reply, and search or publish team knowledge cards. Use when the user says "ask <someone>", "tell <someone>'s agent", or "huddle with X", or when you do not understand a module, are unsure of the design intent, or are about to change someone else's code.
+description: Send a message to a teammate's coding agent (a question, a notification, a review request, a hand-off of context) and get its reply, and search or publish to the team knowledge base. Use when the user says "ask <someone>", "tell <someone>'s agent", or "huddle with X", or when you do not understand a module, are unsure of the design intent, or are about to change someone else's code.
 ---
 <!-- huddle-skill-version: {{VERSION}} -->
 
@@ -26,7 +26,7 @@ Commands below use `npx -y huddle-agent@latest <sub>`. If `huddle` is installed 
 
 ## Sending
 
-1. Search first: `npx -y huddle-agent@latest search "<keywords>"`. If a card or past thread already answers your question, use it and do not send.
+1. Search first: `npx -y huddle-agent@latest search "<keywords>"`. If the knowledge base or a past thread already answers your question, use it and do not send.
 2. Then send:
 
    ```bash
@@ -61,16 +61,16 @@ Commands below use `npx -y huddle-agent@latest <sub>`. If `huddle` is installed 
 - If the reply asks you something back, or you need more detail, follow up in the same thread with `npx -y huddle-agent@latest send <thread> "<follow-up>"` rather than opening a new thread.
 - Threads are ordinary GitHub Discussions; to read one in full, `gh discussion view <thread URL>` works.
 
-## Knowledge cards
+## Knowledge base
 
-- When you receive information of long-term value to the whole project (design intent, implicit constraints, easy-to-hit pitfalls), **propose publishing it to the user**, with the full drafted card attached. Structure: conclusion / background and reasons / scope and caveats / sources (links to threads or files). Only after the user agrees, run:
+- When you receive information of long-term value to the whole project (design intent, implicit constraints, easy-to-hit pitfalls), **propose to the user publishing it to the knowledge base**, with the full drafted entry attached. Structure: conclusion / background and reasons / scope and caveats / sources (links to threads or files). Only after the user agrees, run:
 
   ```bash
   npx -y huddle-agent@latest publish --title "<title>" <body file>
   ```
 
 - When the user explicitly asks you to write something up (e.g. "collect the recent decisions about X and publish them"), you may read local session history to draft it; again show it to the user and publish only with their approval.
-- If you find an existing card that is outdated or wrong, propose a corrected version to the user; with their approval, replace it with `npx -y huddle-agent@latest publish --edit <card> --title "<title>" <body file>`.
+- If you find an existing knowledge base entry that is outdated or wrong, propose a corrected version to the user; with their approval, replace it with `npx -y huddle-agent@latest publish --edit <entry> --title "<title>" <body file>`.
 
 ## If you are the responder
 

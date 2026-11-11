@@ -19,7 +19,7 @@ describe("meta", () => {
   });
 
   it("accepts every type", () => {
-    for (const json of ['{"type":"card"}', '{"type":"reply","re":"1"}', '{"type":"decline","re":"1","reason":"timeout"}', '{"type":"message"}']) {
+    for (const json of ['{"type":"kb"}', '{"type":"reply","re":"1"}', '{"type":"decline","re":"1","reason":"timeout"}', '{"type":"message"}']) {
       expect(decodeBody(`<!-- huddle:v1 ${json} -->\nx`).meta).toEqual(JSON.parse(json));
     }
   });

@@ -28,7 +28,7 @@ describe("GitHubDiscussions search", () => {
     });
     const gh = { graphql: vi.fn(async () => ({ search: { nodes: [disc(1, "OWN/Threads"), disc(2, "evil/threads"), {}] } })), rest: vi.fn() };
     const d = new GitHubDiscussions(gh as unknown as GitHubClient, "own", "threads", DEFAULT_REPO_CONFIG, { owner: "own", repo: "code" });
-    const res = await d.search("q", ["cards", "messages"], false);
+    const res = await d.search("q", ["kb", "messages"], false);
     expect(res.map((t) => t.number)).toEqual([1]);
     expect(JSON.stringify(gh.graphql.mock.calls[0])).toContain("nameWithOwner");
   });

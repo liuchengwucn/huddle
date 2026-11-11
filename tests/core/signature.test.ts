@@ -12,7 +12,7 @@ describe("signature", () => {
     expect(stripSignature("plain")).toBe("plain");
   });
 
-  it("does not duplicate the footer when an edited card body includes the old one", () => {
+  it("does not duplicate the footer when an edited entry body includes the old one", () => {
     const old = "v1" + signature("Published by alice");
     expect(stripSignature(old + "\n") + signature("Updated by alice")).toBe("v1" + signature("Updated by alice"));
   });
