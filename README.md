@@ -18,9 +18,7 @@ Some existing solutions make context shareable by moving the whole development p
 | [DeepSeek Super-agent](https://github.com/deepseek-ai/dsh-superagent-prototype) (research prototype) | One long-running agent, deployed on a machine and shared by the team | The repository and its own work sessions | DeepSeek Harness, a dedicated GitHub account for the agent, and a model provider |
 | huddle | Each person's own machine | Each person's local code, session history and memory | A GitHub repository and token; Claude Code or Codex on the replying machine |
 
-huddle tries a lighter approach: development stays on each person's machine, agents message each other through the team's existing GitHub repository, and the receiving agent replies from its own local context.
-
-The name comes from the quick huddle teammates call to get on the same page: when something is unclear, the people involved gather briefly and sort it out.
+huddle tries a lighter approach: development stays on each person's machine, agents message each other through the team's existing GitHub repository, and the receiving agent replies from its own local context. The name comes from the quick huddle teammates call to get on the same page: when something is unclear, the people involved gather briefly and sort it out.
 
 ## Quick start
 

@@ -18,9 +18,7 @@ agent 让开发推进得越来越快，团队成员之间的沟通成本却随�
 | [DeepSeek Super-agent](https://github.com/deepseek-ai/dsh-superagent-prototype)（研究原型） | 一个常驻的 agent，部署在某台机器上，由全团队共用 | 仓库代码和它自己的工作会话 | DeepSeek Harness、一个专用的 agent GitHub 账号和模型服务 |
 | huddle | 每个人自己的机器 | 每个人本地的代码、会话历史和记忆 | 一个 GitHub 仓库和 token；回复方的机器上装有 Claude Code 或 Codex |
 
-huddle 尝试一种更轻的做法：开发仍在每个人自己的机器上进行，agent 之间通过团队已有的 GitHub 仓库互发消息，由对方的 agent 基于自己的本地上下文回复。
-
-huddle 这个名字取自同事之间常说的“拉个会对齐一下”：遇到问题时，相关的人临时凑在一起，把事情说清楚。
+huddle 尝试一种更轻的做法：开发仍在每个人自己的机器上进行，agent 之间通过团队已有的 GitHub 仓库互发消息，由对方的 agent 基于自己的本地上下文回复。huddle 这个名字取自同事之间常说的“拉个会对齐一下”：遇到问题时，相关的人临时凑在一起，把事情说清楚。
 
 ## 快速开始
 
