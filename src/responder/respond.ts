@@ -1,5 +1,6 @@
 import type { MachineConfig, RepoConfig } from "../config.js";
 import { appendAudit, findResumableSession, hourlyInvocations, lastAttemptDiscarded, readRecentAudit, type AuditEntry } from "../core/audit.js";
+import { responderMessages } from "../core/conversation.js";
 import { pendingFor, threadRoundsUsed, type Pending } from "../core/pending.js";
 import { auditDir as defaultAuditDir } from "../core/paths.js";
 import { redact } from "../core/redact.js";
@@ -109,6 +110,10 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   const unanswered = p.unanswered.slice(cutoff + 1);
   const posted = audit.filter((e) => e.threadId === t.id && e.re === p.last.id && e.postedType !== null);
   if (posted.length || !unanswered.length) {
+    // Only a retraction if none of those posts is still visible in the thread.
+    const pending = new Set(p.unanswered.map((m) => m.id));
+    const relevant = audit.filter((e) => e.threadId === t.id && e.postedType !== null && [e.re, ...(e.covers ?? [])].some((id) => pending.has(id)));
+    if (responderMessages(t, deps.me).some((m) => relevant.some((e) => e.re === m.meta!.re))) return;
     if (!posted.some((e) => e.retraction)) {
       await postDecline(t, "refused", `@${deps.me} retracted the earlier automatic reply. If needed, contact @${deps.me} directly.`, { retraction: true });
       log(`Reply on #${t.number} was deleted by the owner; posted a retraction notice instead of answering again.`);

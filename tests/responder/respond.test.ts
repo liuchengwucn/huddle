@@ -415,6 +415,19 @@ describe("respondOnce", () => {
     expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "decline", re: th.id, reason: "refused" });
   });
 
+  it("does nothing when the sender deletes the re target but the reply stays visible", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t, "M1-text");
+    const m2 = await t.as("bob").reply(th, "M2-text", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps); // one reply covers M1 and M2, re = M2
+    t.deleteComment(m2.id);
+    const before = (await t.getThread(th.number)).messages.length;
+    await respondOnce(deps);
+    expect(calls).toHaveLength(1);
+    expect((await t.getThread(th.number)).messages).toHaveLength(before);
+  });
+
   it("answers again when a deleted reply has no local audit record", async () => {
     const { t, deps, calls } = setup();
     const th = await sendAlice(t);

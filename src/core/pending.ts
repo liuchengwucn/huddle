@@ -15,7 +15,9 @@ export function pendingFor(t: Thread, me: string, allowSelf = selfSendAllowed())
   const last = lastSenderMessage(t);
   if (!last) return null;
   if (responderMessages(t, me).some((m) => m.meta!.re === last.id)) return null;
-  return { last, unanswered: unansweredSenderMessages(t, me) };
+  // Empty when a visible reply covers `last` but targets a later message the sender has since deleted.
+  const unanswered = unansweredSenderMessages(t, me);
+  return unanswered.length ? { last, unanswered } : null;
 }
 
 export const threadRoundsUsed = (t: Thread, me: string): number => responderMessages(t, me).length;
