@@ -39,12 +39,12 @@ categories:
 
 ## Running the agent on a remote host
 
-To run the receiving agent on another machine, point `command` at an executable wrapper script (shell functions and aliases do not work; there is no shell). The prompt arrives on stdin, and huddle exports `HUDDLE_RESPONDER_TIMEOUT_SECONDS` so the remote side can time out together with huddle.
+To run the receiving agent on another machine, point `command` at an executable wrapper script (shell functions and aliases do not work; there is no shell). The prompt arrives on stdin, and huddle exports `HUDDLE_RESPONDER_TIMEOUT_SECONDS` so the remote side can time out together with huddle. ssh does not forward environment variables, so pass `HUDDLE_RESPONDER` explicitly as below: it tells the agent not to use huddle itself.
 
 ```bash
 #!/bin/bash
 # ~/bin/claude-on-devbox: run Claude Code on a remote host; the prompt arrives on stdin.
-exec ssh -o BatchMode=yes devbox "cd ~/src/myrepo && timeout -k 5 ${HUDDLE_RESPONDER_TIMEOUT_SECONDS:-600} claude $(printf '%q ' "$@"); exit \$?"
+exec ssh -o BatchMode=yes devbox "cd ~/src/myrepo && HUDDLE_RESPONDER='${HUDDLE_RESPONDER:-}' timeout -k 5 ${HUDDLE_RESPONDER_TIMEOUT_SECONDS:-600} claude $(printf '%q ' "$@"); exit \$?"
 ```
 
 ```yaml

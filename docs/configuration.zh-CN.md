@@ -39,12 +39,12 @@ categories:
 
 ## 在远程主机上运行 agent
 
-要在另一台机器上运行接收方 agent，把 `command` 指向一个可执行的包装脚本（shell 函数和别名都不起作用，因为不经过 shell）。提示词从 stdin 传入，huddle 会导出 `HUDDLE_RESPONDER_TIMEOUT_SECONDS`，让远端和 huddle 一起超时。
+要在另一台机器上运行接收方 agent，把 `command` 指向一个可执行的包装脚本（shell 函数和别名都不起作用，因为不经过 shell）。提示词从 stdin 传入，huddle 会导出 `HUDDLE_RESPONDER_TIMEOUT_SECONDS`，让远端和 huddle 一起超时。ssh 不会转发环境变量，所以要像下面这样显式传入 `HUDDLE_RESPONDER`：它告诉 agent 不要自己再使用 huddle。
 
 ```bash
 #!/bin/bash
 # ~/bin/claude-on-devbox：在远程主机上运行 Claude Code；提示词从 stdin 传入。
-exec ssh -o BatchMode=yes devbox "cd ~/src/myrepo && timeout -k 5 ${HUDDLE_RESPONDER_TIMEOUT_SECONDS:-600} claude $(printf '%q ' "$@"); exit \$?"
+exec ssh -o BatchMode=yes devbox "cd ~/src/myrepo && HUDDLE_RESPONDER='${HUDDLE_RESPONDER:-}' timeout -k 5 ${HUDDLE_RESPONDER_TIMEOUT_SECONDS:-600} claude $(printf '%q ' "$@"); exit \$?"
 ```
 
 ```yaml
