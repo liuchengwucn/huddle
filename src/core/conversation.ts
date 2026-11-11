@@ -56,7 +56,9 @@ export type ReplyStatus = ResponderType | "pending";
 export function classifyReply(t: Thread): { status: ReplyStatus; reply: Message | null; awaiting: Message } | null {
   const awaiting = lastSenderMessage(t);
   if (!awaiting) return null;
-  const reply = replyTo(t, awaiting.id);
+  const r = responderOf(t);
+  // Same rule as pendingFor: if nothing is unanswered, the latest reply covers `awaiting` even though its re target was deleted.
+  const reply = replyTo(t, awaiting.id) ?? (r && !unansweredSenderMessages(t, r).length ? (responderMessages(t, r).at(-1) ?? null) : null);
   if (!reply) return { status: "pending", reply: null, awaiting };
   return { status: reply.meta!.type as ResponderType, reply, awaiting };
 }

@@ -66,6 +66,19 @@ describe("waitForReply", () => {
     expect(c.now()).toBe(0);
   });
 
+  it("returns a covering reply whose re target the sender deleted", async () => {
+    const t = new FakeTransport("bob");
+    const th = await t.createThread("messages", "q", "M1", { type: "message", to: "alice" });
+    const m2 = await t.reply(th, "M2", { type: "message" });
+    await t.as("alice").reply(th, "covers both", { type: "reply", re: m2.id });
+    t.deleteComment(m2.id);
+    const c = clock();
+    const r = await waitForReply(t.as("bob"), 1, undefined, c);
+    expect(r.code).toBe(0);
+    expect(r.output).toContain("covers both");
+    expect(c.now()).toBe(0);
+  });
+
   it("still returns a reply posted before the thread was closed", async () => {
     const t = new FakeTransport("bob");
     const th = await t.createThread("messages", "q", "why?", { type: "message", to: "alice" });
