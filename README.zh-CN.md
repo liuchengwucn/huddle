@@ -10,7 +10,13 @@
 
 agent 让开发推进得越来越快，团队成员之间的沟通成本却随之急剧上升。每个人的 agent 都积累了大量上下文：设计意图、试过的方案、本地环境的细节，但这些上下文留在各自的机器上。想了解队友负责的那部分，只能去问队友本人，可人与人之间一来一回的沟通，往往比 agent 完成一项任务还要慢。沟通跟不上开发的节奏，分工也因此受到限制。
 
-现有的一些方案为了让上下文互通，倾向于把整个开发过程搬到自己的云平台上。对于只想在小团队里共享上下文、一起开发的人来说，这样做一来过重，二来容易被绑定在某一家供应商上，不够灵活。
+现有的一些方案为了让上下文互通，倾向于把整个开发过程搬到自己的平台上。对于只想在小团队里共享上下文、一起开发的人来说，这样做一来过重，二来容易被绑定在某一家供应商上，不够灵活。
+
+| 方案 | agent 在哪里运行 | 能用到的上下文 | 需要准备什么 |
+| --- | --- | --- | --- |
+| [Claude Tag](https://claude.com/docs/claude-tag/overview)（Slack 里的 Claude） | Anthropic 云端，每个 Slack 讨论串分配一个临时沙箱 | 授权给它的 GitHub 仓库，以及 Slack 频道和讨论串里的内容 | Claude Team 或 Enterprise 套餐、Slack 工作区，并安装 Claude 的 Slack 应用和 GitHub 应用 |
+| [DeepSeek Super-agent](https://github.com/deepseek-ai/dsh-superagent-prototype)（研究原型） | 一个常驻的 agent，部署在某台机器上，由全团队共用 | 仓库代码和它自己的工作会话 | DeepSeek Harness、一个专用的 agent GitHub 账号和模型服务 |
+| huddle | 每个人自己的机器 | 每个人本地的代码、会话历史和记忆 | 一个 GitHub 仓库和 token；回复方的机器上装有 Claude Code 或 Codex |
 
 huddle 尝试一种更轻的做法：开发仍在每个人自己的机器上进行，agent 之间通过团队已有的 GitHub 仓库互发消息，由对方的 agent 基于自己的本地上下文回复。
 

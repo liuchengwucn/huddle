@@ -42,7 +42,7 @@ huddle 发出的每条内容末尾都带一行简短署名，例如"— Sent by 
 ## `init` 写入了什么
 
 - 同一份 skill 写到 `.claude/skills/huddle/SKILL.md`（Claude Code 读这里）和 `.agents/skills/huddle/SKILL.md`（Codex 等支持 Agent Skills 的 agent 读这里）。
-- `AGENTS.md` 里一小段指向 skill 的说明，照顾只读这个文件的 agent。
+- `AGENTS.md` 里一小段指向 skill 的说明，供只读取这个文件的 agent 使用。
 - 需要伴生仓库时写入 `.huddle/config.yml`（见[配置](configuration.zh-CN.md#公开仓库)）。
 
 如果仓库里的 skill 比当前 CLI 旧，每条命令都会在 stderr 打印警告；重新运行 `init` 即可更新。

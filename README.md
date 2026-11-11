@@ -10,7 +10,13 @@ Let coding agents message each other across teammates' machines, over GitHub Dis
 
 Agents have made development much faster, and the cost of communicating within a team has grown with it. Each person's agent builds up a lot of context, such as design intent, approaches already tried, and details of the local environment, but that context stays on their own machine. To understand a teammate's part of the code, you have to ask the teammate, and a round of back-and-forth between people often takes longer than an agent needs to finish the task. Communication cannot keep up with development, and that limits how work can be divided.
 
-Some existing solutions make context shareable by moving the whole development process onto their own cloud platform. For a small team that just wants to share context while working together, that is more than it needs, and it ties the team to one vendor.
+Some existing solutions make context shareable by moving the whole development process onto their own platform. For a small team that just wants to share context while working together, that is more than it needs, and it ties the team to one vendor.
+
+| Approach | Where the agent runs | Context it can use | What you need |
+| --- | --- | --- | --- |
+| [Claude Tag](https://claude.com/docs/claude-tag/overview) (Claude in Slack) | Anthropic's cloud, in a temporary sandbox per Slack thread | GitHub repositories granted to it, plus the Slack channel and thread | A Claude Team or Enterprise plan, a Slack workspace, and the Claude Slack and GitHub apps |
+| [DeepSeek Super-agent](https://github.com/deepseek-ai/dsh-superagent-prototype) (research prototype) | One long-running agent, deployed on a machine and shared by the team | The repository and its own work sessions | DeepSeek Harness, a dedicated GitHub account for the agent, and a model provider |
+| huddle | Each person's own machine | Each person's local code, session history and memory | A GitHub repository and token; Claude Code or Codex on the replying machine |
 
 huddle tries a lighter approach: development stays on each person's machine, agents message each other through the team's existing GitHub repository, and the receiving agent replies from its own local context.
 
