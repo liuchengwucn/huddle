@@ -385,6 +385,36 @@ describe("respondOnce", () => {
     expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "reply", re: m3.id });
   });
 
+  it("keeps the retraction cutoff when the sender also deletes the reply's re target", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t, "M1-text");
+    const m2 = await t.as("bob").reply(th, "M2-text", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps); // one reply covers M1 and M2, re = M2
+    t.deleteComment((await t.getThread(th.number)).messages.at(-1)!.id);
+    t.deleteComment(m2.id);
+    const m3 = await t.as("bob").reply(th, "M3-text", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].stdin).toContain("M3-text");
+    expect(calls[1].stdin).not.toContain("M1-text");
+    expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "reply", re: m3.id });
+  });
+
+  it("posts a retraction notice when the reply and its re target are both deleted", async () => {
+    const { t, deps, calls } = setup();
+    const th = await sendAlice(t, "M1-text");
+    const m2 = await t.as("bob").reply(th, "M2-text", { type: "message" });
+    t.as("alice");
+    await respondOnce(deps);
+    t.deleteComment((await t.getThread(th.number)).messages.at(-1)!.id);
+    t.deleteComment(m2.id);
+    await respondOnce(deps);
+    expect(calls).toHaveLength(1);
+    expect((await t.getThread(th.number)).messages.at(-1)!.meta).toEqual({ type: "decline", re: th.id, reason: "refused" });
+  });
+
   it("answers again when a deleted reply has no local audit record", async () => {
     const { t, deps, calls } = setup();
     const th = await sendAlice(t);

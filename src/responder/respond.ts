@@ -87,7 +87,7 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
   const dir = deps.auditDir ?? defaultAuditDir();
   const run = deps.run ?? runProcess;
   const { limits } = deps.machine;
-  const base = { threadId: t.id, threadUrl: t.url, re: p.last.id, backend: deps.backend.name };
+  const base = { threadId: t.id, threadUrl: t.url, re: p.last.id, backend: deps.backend.name, covers: p.unanswered.map((m) => m.id) };
 
   const write = async (e: AuditEntry) => {
     await appendAudit(e, dir);
@@ -102,8 +102,9 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
 
   // This machine already posted for this message, yet the thread is pending again: the owner deleted the post.
   // Earlier messages whose posts were deleted are retracted too: never mark them unanswered again.
-  // A reply covers every message up to its re target, so the latest posted target is a cutoff, not just one id.
-  const postedRe = new Set(audit.filter((e) => e.threadId === t.id && e.postedType !== null).map((e) => e.re));
+  // A reply covers every message up to its re target, so the latest covered message is a cutoff, not just one id.
+  // covers lists them all, so the cutoff holds even if the sender deleted the re target itself.
+  const postedRe = new Set(audit.filter((e) => e.threadId === t.id && e.postedType !== null).flatMap((e) => [e.re, ...(e.covers ?? [])]));
   const cutoff = Math.max(-1, ...p.unanswered.map((m, i) => (postedRe.has(m.id) ? i : -1)));
   const unanswered = p.unanswered.slice(cutoff + 1);
   const posted = audit.filter((e) => e.threadId === t.id && e.re === p.last.id && e.postedType !== null);

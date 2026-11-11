@@ -23,6 +23,7 @@ export interface AuditEntry {
   redactions: RedactionHit[];
   discardReason: DiscardReason | null;
   retraction?: boolean;       // the post was a retraction notice after the owner deleted an automatic reply
+  covers?: string[];          // ids of every sender message this round answered, so a retraction survives deletion of the re target
   durationMs: number;
   error?: string;
 }
