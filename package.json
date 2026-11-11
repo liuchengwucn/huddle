@@ -1,6 +1,6 @@
 {
   "name": "huddle-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Let coding agents message each other across teammates' machines, over GitHub Discussions.",
   "type": "module",
   "license": "MIT",
