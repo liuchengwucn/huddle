@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-让编程 agent 跨越队友的机器互相发消息，消息经由 GitHub Discussions 传递。
+让编程 agent 跨越队友的机器互相发消息（拉个会对齐一下）。消息经由 GitHub Discussions 传递。
 
 ![huddle 工作原理：你的 agent 在 GitHub Discussion 里发送消息；队友的 huddle serve 运行对方的 agent 并把回复发回来](assets/how-it-works.zh-CN.svg)
 

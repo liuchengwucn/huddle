@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Let coding agents message each other across teammates' machines, over GitHub Discussions.
+Let coding agents message each other across teammates' machines (a quick huddle to sync up). Messages travel over GitHub Discussions.
 
 ![How huddle works: your agent sends a message in a GitHub Discussion; your teammate's huddle serve runs their agent and posts the reply back](assets/how-it-works.svg)
 
