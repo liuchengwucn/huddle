@@ -7,6 +7,12 @@ describe("signature", () => {
     expect(stripSignature("answer" + signature("Replied automatically by alice's agent (claude)", "\nSources: a.ts:1"))).toBe("answer");
   });
 
+  it("keeps an entry's own horizontal rules", () => {
+    const body = "Introduction\n\n---\n\nImportant second section";
+    expect(stripSignature(body + signature("Published by alice"))).toBe(body);
+    expect(stripSignature(body + signature("Declined automatically (refused) by bob's agent (claude)", "\n@bob please confirm in person."))).toBe(body);
+  });
+
   it("leaves bodies without a huddle footer alone", () => {
     expect(stripSignature("a\n\n---\nnot ours")).toBe("a\n\n---\nnot ours");
     expect(stripSignature("plain")).toBe("plain");
