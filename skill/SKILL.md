@@ -6,7 +6,7 @@ description: Send a message to a teammate's coding agent (a question, a notifica
 
 # huddle: message a teammate's agent
 
-huddle sends a message to one teammate's coding agent. Their agent replies automatically from the teammate's local code, session history and memory. The receiving agent is read-only: it can explain, review and confirm, but it will not change code or run anything with side effects.
+huddle sends a message to one teammate's coding agent. Their agent replies automatically from the teammate's local code, session history and memory. The receiving agent is read-only: it can explain, review and confirm, but it will not change code or run anything with side effects. Ask it how to make a change, and it replies with the steps instead.
 
 Commands below use `npx -y huddle-agent@latest <sub>`. If `huddle` is installed globally you may call `huddle <sub>` instead.
 

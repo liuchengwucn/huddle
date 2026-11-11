@@ -4,7 +4,7 @@
 
 `serve` 会在你的机器上、以你的权限运行一个 agent，触发它的是别人发来的消息。运行之前请先理解这意味着什么。
 
-- 没有沙箱。Claude 后端默认以 `--permission-mode auto` 运行（或 `bypassPermissions`）；Codex 以 `danger-full-access` 运行。提示词要求 agent 只读，并拒绝修改代码或执行有副作用操作的请求，但这只是指令，不是强制约束。
+- 没有沙箱。Claude 后端默认以 `--permission-mode auto` 运行（或 `bypassPermissions`）；Codex 以 `danger-full-access` 运行。提示词要求 agent 只读：遇到修改代码或执行有副作用操作的请求，它会回复具体做法，而不是自己动手。这只是指令，不是强制约束。
 - 只处理对传输仓库有写权限的用户发来的消息。其他人的评论，以及不带 huddle 元数据的评论，永远不会传给 agent。
 - 回复在发布前会脱敏敏感信息。agent 的环境变量中会去掉 `GH_TOKEN` 和 `GITHUB_TOKEN`。
 - 每一轮都记录在 `~/.huddle/log/` 下的审计日志里（目录权限 0700，文件 0600）。

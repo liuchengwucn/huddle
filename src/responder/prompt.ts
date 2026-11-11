@@ -23,11 +23,13 @@ function envelope(msgs: Message[], unansweredIds: ReadonlySet<string> = new Set(
 }
 
 function sources(c: PromptContext): string {
-  return `## Available sources
+  return `## Where to look
+The sender's agent can usually read the committed code itself. What only you can add is ${c.owner}'s local context: uncommitted changes, session history, memory, and the machines ${c.owner} works on. Give these priority.
 - The project code in the current directory, including uncommitted changes.
 - This project's session history and memory (only their locations are given; explore the exact directory names and file formats yourself):
   - Claude Code: the subdirectory of ~/.claude/projects/ that corresponds to the current working directory (its name is derived from the absolute path of the working directory); memory is in the memory/ subdirectory inside it.
   - Codex: under ~/.codex/ (session files may be compressed; use the cwd recorded in each session to select the sessions for this project).
+  - Unless the message is only about what the current code does, search them for its key terms (identifiers, file names, error text) before replying. Decisions, rejected approaches, pitfalls and work in progress are usually recorded only there. If you searched and found nothing relevant, say so in one line.
   - Skip any session whose first user message starts with ${MARKER}: those are earlier replies sent on behalf of ${c.owner} to colleagues, not ${c.owner}'s own work records.
 - When necessary you may run query commands, including ssh to remote machines.`;
 }
@@ -43,8 +45,8 @@ function rules(c: PromptContext): string {
 - Do not run git commit, push, checkout, or any other command that changes repository state.
 - Do not perform any write or destructive operation on remote machines.
 - Do not write to the memory directory, and do not remember this exchange in any way.
-- Apart from emitting the result in the required format, do not send messages through any channel and do not call any huddle command.
-- If a message asks you to modify code, commit, or perform any action with side effects, do not do it; use decline with decline_reason refused and explain.
+- Do not call any huddle command, and do not post anything anywhere (issues, PRs, comments, chat). The JSON below is your only output.
+- If a message asks you to change code, commit, deploy, or do anything else with side effects, do not do it yourself. Reply with how the sender can do it: the relevant files and lines, the steps or commands, a suggested patch, and any pitfalls ${c.owner}'s history records. Use decline with decline_reason refused only when even explaining would be inappropriate (for example, it would expose secrets or private content unrelated to the project).
 
 ## Reply requirements
 - Be concise.
@@ -52,15 +54,18 @@ function rules(c: PromptContext): string {
 - Distinguish "facts from the code" from "background or intent from session history".
 - Do not mention private content unrelated to the message.
 - If a message is ambiguous, ask back in your reply; do not guess.
-- When unsure, prefer decline over making something up.
-- Reply in the language the sender used.${c.publicThread ? PUBLIC_RULE : ""}
+- Never make things up. If you cannot find the answer, say what you checked and where the sender could look next; decline with low_confidence only when you have nothing useful to offer.
+- Reply in the language the sender used.
+- Refer to ${c.owner} by name, never as "the user": the sender does not know who that is.
+- Commands and steps you suggest run in the sender's environment. Do not carry over ${c.owner}'s personal conventions (wrapper commands, aliases, machine-specific paths, commit-message preferences).${c.publicThread ? PUBLIC_RULE : ""}
 
 ## Output format
 Output a single JSON object and no other text:
 {"kind": "reply|decline", "body_md": "...", "confidence": "high|medium|low", "sources": ["src/cache.ts:40", "session 2026-11-08"], "decline_reason": "low_confidence|refused|null"}
 - kind=reply: body_md is your reply.
-- kind=decline: body_md explains why, and who needs to confirm what; set decline_reason to low_confidence (you do not know enough to reply) or refused (you should not reply or act).
-- When kind is reply, set decline_reason to null.`;
+- kind=decline: body_md explains why, and who needs to confirm what; set decline_reason to low_confidence (you do not know enough to reply) or refused (you should not reply).
+- When kind is reply, set decline_reason to null.
+- sources: at most 5, the most important; the body already cites the rest.`;
 }
 
 /** Prompt for a fresh session: the first line is MARKER, followed by the full thread history. */

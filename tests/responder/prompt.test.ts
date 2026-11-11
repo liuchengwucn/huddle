@@ -59,7 +59,10 @@ describe("buildInitialPrompt", () => {
     expect(p).toContain("to a message from bob's agent");
     expect(p).toContain("reply to every message marked unanswered=true");
     expect(p).toContain("- Reply in the language the sender used.");
-    expect(p).toContain("use decline with decline_reason refused");
+    expect(p).toContain("Reply with how the sender can do it");
+    expect(p).toContain("search them for its key terms");
+    expect(p).not.toContain("channel");
+    expect(p).toContain('Refer to alice by name, never as "the user"');
     expect(p).toContain('{"kind": "reply|decline"');
     expect(p).not.toContain("clarify");
     expect(p.match(/unanswered=true>>>/g)).toHaveLength(1);
