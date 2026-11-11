@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { waitForReply } from "../../src/cli/wait.js";
 import { FakeTransport } from "../../src/transport/fake.js";
 
+// Fake time only advances in microtasks, which starves vitest's own timeout; cap it so an endless wait fails instead of hanging.
+const MAX_FAKE_MS = 30 * 86400_000;
 function clock() {
   let now = 0;
-  return { now: () => now, sleep: async (ms: number) => { now += ms; } };
+  return { now: () => now, sleep: async (ms: number) => { now += ms; if (now > MAX_FAKE_MS) throw new Error("fake clock exceeded 30 days: endless wait?"); } };
 }
 
 describe("waitForReply", () => {
@@ -107,6 +109,7 @@ describe("waitForReply", () => {
     let polls = 0;
     const sleep = async (ms: number) => {
       now += ms;
+      if (now > MAX_FAKE_MS) throw new Error("fake clock exceeded 30 days: endless wait?");
       if (++polls === 1000) await t.as("alice").reply(th, "finally", { type: "reply", re: th.id });
     };
     const r = await waitForReply(t, 1, undefined, { now: () => now, sleep, pollMs: 15_000 });

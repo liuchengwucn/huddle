@@ -12,9 +12,10 @@ import { claudeBackend } from "../../src/responder/backends/claude.js";
 import { FakeTransport } from "../../src/transport/fake.js";
 
 const mkCtx = (transport: FakeTransport, me: string): Ctx => ({ root: process.cwd(), repo: DEFAULT_REPO_CONFIG, machine: parseMachineConfig(null), transport, me, slug: "o/r", publicThreads: false });
+// Fake time only advances in microtasks, which starves vitest's own timeout; cap it so an endless wait fails instead of hanging.
 const clock = () => {
   let now = 0;
-  return { now: () => now, sleep: async (ms: number) => { now += ms; } };
+  return { now: () => now, sleep: async (ms: number) => { now += ms; if (now > 30 * 86400_000) throw new Error("fake clock exceeded 30 days: endless wait?"); } };
 };
 
 beforeEach(() => {
