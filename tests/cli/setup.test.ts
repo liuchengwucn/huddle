@@ -7,6 +7,8 @@ import { HuddleError } from "../../src/errors.js";
 import YAML from "yaml";
 import { agentsBlock, ensureTransportRepo, hasUncommittedChanges, renderSkill, transportProblems, upsertBlock, type GhLike } from "../../src/cli/setup.js";
 
+import { guideSync } from "../../src/cli/skill-version.js";
+
 const template = readFileSync(new URL("../../skill/SKILL.md", import.meta.url), "utf8");
 
 describe("setup", () => {
@@ -45,12 +47,21 @@ describe("setup", () => {
 });
 
 describe("skill guidance", () => {
-  it("covers wait strategy per agent and never resending", () => {
-    expect(template).toContain("--wait 540");
-    expect(template).toContain("600000 ms");
-    expect(template).toContain("--wait 30");
-    expect(template).toContain("Never resend the message");
-    expect((template.match(/```/g) ?? []).length % 2).toBe(0);
+  it("keeps the installed skill a thin pointer to the guide", () => {
+    expect(template).toContain("npx -y huddle-agent@latest guide");
+    expect(template).toContain("[huddle-responder]");
+    expect(template).toContain("HUDDLE_RESPONDER=1");
+    expect(template).not.toContain("--wait");
+    expect(template.split("\n").length).toBeLessThan(15);
+  });
+
+  it("covers wait strategy per agent and never resending in the guide", () => {
+    const guide = guideSync();
+    expect(guide).toContain("--wait 540");
+    expect(guide).toContain("600000 ms");
+    expect(guide).toContain("--wait 30");
+    expect(guide).toContain("Never resend the message");
+    expect((guide.match(/```/g) ?? []).length % 2).toBe(0);
   });
 });
 

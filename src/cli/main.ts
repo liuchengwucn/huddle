@@ -7,7 +7,7 @@ import * as kb from "./kb.js";
 import * as responder from "./responder.js";
 import * as setup from "./setup.js";
 import { assertNotResponder, createContext } from "./context.js";
-import { preActionWarning } from "./skill-version.js";
+import { guideSync, preActionWarning } from "./skill-version.js";
 
 const seconds = (v: string) => {
   const n = Number(v);
@@ -88,6 +88,15 @@ program
   .description("Search the knowledge base and past threads")
   .argument("<query>")
   .action(action(async (q: string) => kb.search(await ctx(), q)));
+
+program
+  .command("guide")
+  .description("Print the usage guide for agents (the installed skill points here)")
+  .action(() => {
+    process.stdout.write(process.env.HUDDLE_RESPONDER === "1"
+      ? "You are running as a huddle responder (HUDDLE_RESPONDER=1): do not use any huddle command.\n"
+      : guideSync());
+  });
 
 program
   .command("init")

@@ -33,6 +33,11 @@ export function skillTemplateSync(): string {
   return readFileSync(fileURLToPath(new URL("../../skill/SKILL.md", import.meta.url)), "utf8");
 }
 
+/** The usage guide printed by `huddle guide`; it lives in the package, so the installed skill stays a thin pointer to it. */
+export function guideSync(): string {
+  return readFileSync(fileURLToPath(new URL("../../skill/GUIDE.md", import.meta.url)), "utf8");
+}
+
 export function renderSkill(template: string, version = VERSION): string {
   return template.replaceAll("{{VERSION}}", version);
 }

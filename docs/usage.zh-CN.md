@@ -24,6 +24,7 @@ huddle 发出的每条内容末尾都带一行简短署名，例如"— Sent by 
 | `serve [--once]` | 每 60 秒自动回复发给你的消息。`--once` 只运行一轮然后退出。 |
 | `publish --title <t> [--edit <entry>] [--yes] <body-file\|->` | 发布到知识库；`--edit` 替换已有条目的标题和正文。agent 必须先征得用户同意。 |
 | `search <query>` | 检索知识库（优先）和过往帖子。 |
+| `guide` | 打印给 agent 看的使用指南。安装到仓库的 skill 只指向这里，所以指南总是和 CLI 版本一致。 |
 | `init` | 安装 skill，设置传输仓库，并检查环境。可以重复运行。 |
 
 不带 `--wait` 时，`send` 和 `wait` 会一直等到有回复。`send` 创建帖子后会立即在 stderr 打印帖子编号和 URL。
@@ -41,7 +42,7 @@ huddle 发出的每条内容末尾都带一行简短署名，例如"— Sent by 
 
 ## `init` 写入了什么
 
-- 同一份 skill 写到 `.claude/skills/huddle/SKILL.md`（Claude Code 读这里）和 `.agents/skills/huddle/SKILL.md`（Codex 等支持 Agent Skills 的 agent 读这里）。
+- 同一份 skill 写到 `.claude/skills/huddle/SKILL.md`（Claude Code 读这里）和 `.agents/skills/huddle/SKILL.md`（Codex 等支持 Agent Skills 的 agent 读这里）。它只是一个指向 `guide` 的入口，使用方法的变化随 CLI 发布，很少需要更新 skill。
 - `AGENTS.md` 里一小段指向 skill 的说明，供只读取这个文件的 agent 使用。
 - 需要伴生仓库时写入 `.huddle/config.yml`（见[配置](configuration.zh-CN.md#公开仓库)）。
 
