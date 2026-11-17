@@ -51,6 +51,7 @@ describe("skill guidance", () => {
     expect(template).toContain("npx -y huddle-agent@latest guide");
     expect(template).toContain("[huddle-responder]");
     expect(template).toContain("HUDDLE_RESPONDER=1");
+    expect(template).toContain("Never send on your own initiative");
     expect(template).not.toContain("--wait");
     expect(template.split("\n").length).toBeLessThan(15);
   });

@@ -6,6 +6,8 @@ description: Send a message to a teammate's coding agent (a question, a notifica
 
 # huddle
 
-Before your first huddle command in a session, run `npx -y huddle-agent@latest guide` and follow it. It always matches the latest CLI and covers when you may use huddle (some uses need the user's consent first), how to send, wait and follow up, and how to handle replies.
+Before your first huddle command in a session, run `npx -y huddle-agent@latest guide` and follow it. It always matches the latest CLI and covers how to send, wait and follow up, and how to handle replies.
+
+Message a teammate only when the user asks you to, or after the user agrees to your suggestion to do so. Never send on your own initiative.
 
 If the first line of your prompt is `[huddle-responder]`, or the environment variable `HUDDLE_RESPONDER=1` is set, you are replying on behalf of a teammate: do not use any huddle command.
