@@ -53,6 +53,13 @@ describe("codex backend event edge cases", () => {
     expect(codexBackend(cfg).parse(run(evs))).toEqual({ sessionId: "T-1", text: "last" });
   });
 
+  it("recovers the thread id of a killed run from its partial output", () => {
+    const b = codexBackend(cfg);
+    const partial = lines([{ type: "thread.started", thread_id: "T-7" }, { type: "turn.started" }]) + '\n{"type":"item.comp';
+    expect(b.killedSessionId(run(partial, null, true), null)).toBe("T-7");
+    expect(b.killedSessionId(run("", null, true), null)).toBeNull();
+  });
+
   it("returns a null sessionId without thread.started", () => {
     const evs = lines([{ type: "item.completed", item: { id: "i0", type: "agent_message", text: "hi" } }]);
     expect(codexBackend(cfg).parse(run(evs))).toEqual({ sessionId: null, text: "hi" });

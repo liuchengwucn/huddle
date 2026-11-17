@@ -49,7 +49,8 @@ Commands below use `npx -y huddle-agent@latest <sub>`. If `huddle` is installed 
 - 1: the command failed. Read the error message and act on it, e.g. if `--to` cannot be resolved, use a GitHub login instead.
 - 2: timed out waiting. Tell the user the thread number, work on things that do not depend on the reply, then check later with `npx -y huddle-agent@latest wait <thread>`.
 - 3: no reply is coming. Act on the reason in the output:
-  - timeout / error: retry later with `npx -y huddle-agent@latest send <thread> "<original message or more detail>"`;
+  - timeout: the request was too big for one automatic run; send a narrower follow-up (one part at a time) with `npx -y huddle-agent@latest send <thread> "<narrower message>"`;
+  - error: retry later with `npx -y huddle-agent@latest send <thread> "<original message or more detail>"`;
   - low_confidence: they do not know enough; consider sending to someone else;
   - refused: tell the user why;
   - rate_limited: this topic needs direct human communication; tell the user. Do not open a new thread to get around the limit;

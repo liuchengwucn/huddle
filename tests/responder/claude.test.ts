@@ -16,6 +16,14 @@ describe("claude backend", () => {
     expect(b.argv({ resumeSessionId: "S1" }).slice(-2)).toEqual(["--resume", "S1"]);
   });
 
+  it("presets the session id of a fresh run so a killed run can be resumed", () => {
+    const b = claudeBackend(cfg);
+    expect(b.argv({ resumeSessionId: null, newSessionId: "U1" }).slice(-2)).toEqual(["--session-id", "U1"]);
+    expect(b.argv({ resumeSessionId: "S1", newSessionId: "U1" })).not.toContain("--session-id");
+    expect(b.argv({ resumeSessionId: null, newSessionId: "-x" })).not.toContain("--session-id");
+    expect(b.killedSessionId(run("", null, true), "U1")).toBe("U1");
+  });
+
   it("parses result JSON even with noise before it", () => {
     const b = claudeBackend(cfg);
     const json = JSON.stringify({ type: "result", is_error: false, result: '{"kind":"answer"}', session_id: "S9" });

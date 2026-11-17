@@ -27,7 +27,7 @@ describe("waitForReply", () => {
 
     const f2 = await t.as("bob").reply(th, "again", { type: "message" });
     await t.as("alice").reply(th, "slow", { type: "decline", re: f2.id, reason: "timeout" });
-    expect((await waitForReply(t, 1, 10, clock())).output).toContain("retry later with huddle send 1");
+    expect((await waitForReply(t, 1, 10, clock())).output).toContain("send a narrower follow-up (one part at a time) with huddle send 1");
   });
 
   it("recovers from transient getThread failures and gives up after 3", async () => {

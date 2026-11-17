@@ -29,15 +29,19 @@ export function claudeBackend(cfg: MachineConfig): Backend {
   return {
     name: "claude",
     command,
-    argv: ({ resumeSessionId }) => [
+    argv: ({ resumeSessionId, newSessionId }) => [
       ...command,
       "-p",
       "--permission-mode", cfg.permission_mode,
       "--output-format", "json",
       "--json-schema", JSON.stringify(OUTPUT_SCHEMA),
       "--settings", JSON.stringify({ autoMemoryEnabled: false }),
-      ...(resumeSessionId && isSafeSessionId(resumeSessionId) ? ["--resume", resumeSessionId] : []),
+      ...(resumeSessionId && isSafeSessionId(resumeSessionId)
+        ? ["--resume", resumeSessionId]
+        // A killed run prints nothing, so the session id must be known up front to resume it for a wrap-up.
+        : newSessionId && isSafeSessionId(newSessionId) ? ["--session-id", newSessionId] : []),
     ],
+    killedSessionId: (_r, newSessionId) => newSessionId,
     parse(r: RunResult): BackendRun {
       if (r.spawnError) throw new BackendError(`Cannot start ${command[0]}: ${r.spawnError}`);
       if (r.timedOut) throw new BackendError("timed out");

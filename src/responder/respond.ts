@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { MachineConfig, RepoConfig } from "../config.js";
-import { appendAudit, findResumableSession, hourlyInvocations, lastAttemptDiscarded, readRecentAudit, type AuditEntry } from "../core/audit.js";
+import { appendAudit, findResumableSession, hourlyInvocations, isSafeSessionId, lastAttemptDiscarded, readRecentAudit, type AuditEntry } from "../core/audit.js";
 import { responderMessages } from "../core/conversation.js";
 import { pendingFor, threadRoundsUsed, type Pending } from "../core/pending.js";
 import { auditDir as defaultAuditDir } from "../core/paths.js";
@@ -10,7 +11,7 @@ import { signature } from "../core/signature.js";
 import type { Transport } from "../transport/types.js";
 import type { Backend } from "./backends/types.js";
 import { decide, parseAgentOutput, type Decision } from "./output.js";
-import { buildContinuationPrompt, buildInitialPrompt, type PromptContext } from "./prompt.js";
+import { buildContinuationPrompt, buildInitialPrompt, buildWrapUpPrompt, type PromptContext } from "./prompt.js";
 import { runProcess, type RunResult, type RunSpec } from "./runner.js";
 
 export interface RespondDeps {
@@ -23,6 +24,7 @@ export interface RespondDeps {
   run?: (spec: RunSpec) => Promise<RunResult>;
   now?: () => Date;
   log?: (msg: string) => void;
+  sleep?: (ms: number) => Promise<void>;
   auditDir?: string;
   /** Runs before every serve round; a rejection ends serve. */
   beforeRound?: () => Promise<void>;
@@ -30,6 +32,8 @@ export interface RespondDeps {
 }
 
 const POST_ERROR_BACKOFF_MS = 10 * 60_000;
+const WRAP_UP_MS = 2 * 60_000;
+const WRAP_UP_DELAY_MS = 10_000;
 const MAX_POST = 60_000;
 const TRUNCATED_NOTE = "…(reply truncated; the full text is in the owner's local audit log)";
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -79,14 +83,15 @@ function footer(d: Decision, me: string, backend: string): string {
   return signature(`Declined automatically (${d.reason}) by ${me}'s agent (${backend})`, `\n@${me} please confirm in person.`);
 }
 
-type Outcome =
-  | { ok: true; decision: Decision; sessionId: string | null; entry: AuditEntry }
-  | { ok: false; failure: "timeout" | "error" };
+type Success = { ok: true; decision: Decision; sessionId: string | null; entry: AuditEntry };
+type Outcome = Success | { ok: false; failure: "timeout" | "error" };
+type Attempt = { timedOut: true; sessionId: string | null } | { timedOut: false; outcome: Success | null };
 
 async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: string) => void, audit: AuditEntry[]): Promise<void> {
   const now = deps.now ?? (() => new Date());
   const dir = deps.auditDir ?? defaultAuditDir();
   const run = deps.run ?? runProcess;
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const { limits } = deps.machine;
   const base = { threadId: t.id, threadUrl: t.url, re: p.last.id, backend: deps.backend.name, covers: p.unanswered.map((m) => m.id) };
 
@@ -142,6 +147,34 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
     owner: deps.me, sender: t.author, threadUrl: t.url, threadNumber: t.number, publicThread: draftedPublic,
   };
   const plan: (string | null)[] = resumeId ? [resumeId, null, null] : [null, null];
+  const timeoutMs = limits.timeout_minutes * 60_000;
+
+  /** One agent run. Failures are written to the audit log here; a timed-out run reports its session, if recoverable. */
+  const attempt = async (sid: string | null, build: (c: PromptContext) => string, ms: number, wrapUp = false): Promise<Attempt> => {
+    const newId = sid ? null : randomUUID();
+    const start = now();
+    const prompt = build({ ...ctx, time: { start, deadline: new Date(start.getTime() + ms) } });
+    const r = await run({ argv: deps.backend.argv({ resumeSessionId: sid, newSessionId: newId }), stdin: prompt, cwd: deps.cwd, timeoutMs: ms });
+    const entry: AuditEntry = {
+      ...base, time: now().toISOString(), invokedAgent: true, sessionId: null, resumed: sid !== null, prompt,
+      rawOutput: r.stdout, stderr: r.stderr.slice(-4000), postedType: null, postedText: null, redactions: [], discardReason: null,
+      durationMs: r.durationMs, ...(wrapUp ? { wrapUp } : {}),
+    };
+    if (r.timedOut) {
+      await write({ ...entry, error: "timeout" });
+      return { timedOut: true, sessionId: sid ?? deps.backend.killedSessionId(r, newId) };
+    }
+    try {
+      const br = deps.backend.parse(r);
+      const decision = decide(parseAgentOutput(br.text));
+      const sessionId = br.sessionId ?? sid;
+      return { timedOut: false, outcome: { ok: true, decision, sessionId, entry: { ...entry, sessionId } } };
+    } catch (e) {
+      await write({ ...entry, error: errMsg(e) });
+      log(`Responder agent failed on #${t.number}${wrapUp ? " (wrap-up)" : sid ? " (resumed session)" : ""}: ${errMsg(e)}`);
+      return { timedOut: false, outcome: null };
+    }
+  };
 
   let outcome: Outcome = { ok: false, failure: "error" };
   let started = false;
@@ -152,32 +185,24 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
       return;
     }
     started = true;
-    const prompt = sid ? buildContinuationPrompt(ctx, unanswered, discarded) : buildInitialPrompt(ctx, t, unanswered);
-    const r = await run({
-      argv: deps.backend.argv({ resumeSessionId: sid }),
-      stdin: prompt,
-      cwd: deps.cwd,
-      timeoutMs: limits.timeout_minutes * 60_000,
-    });
-    const entry: AuditEntry = {
-      ...base, time: now().toISOString(), invokedAgent: true, sessionId: null, resumed: sid !== null, prompt,
-      rawOutput: r.stdout, stderr: r.stderr.slice(-4000), postedType: null, postedText: null, redactions: [], discardReason: null,
-      durationMs: r.durationMs,
-    };
-    if (r.timedOut) {
-      await write({ ...entry, error: "timeout" });
+    const a = await attempt(sid, (c) => (sid ? buildContinuationPrompt(c, unanswered, discarded) : buildInitialPrompt(c, t, unanswered)), timeoutMs);
+    if (a.timedOut) {
       outcome = { ok: false, failure: "timeout" };
+      // Resume the killed session once, briefly, so the work done so far becomes a partial answer instead of being lost.
+      // Not gated by the hourly limit: it finishes this invocation rather than starting a new one.
+      // argv() would silently drop an unsafe id, and a wrap-up in a fresh session has no context to wrap up.
+      if (a.sessionId && isSafeSessionId(a.sessionId)) {
+        log(`#${t.number} hit the ${limits.timeout_minutes}-minute limit; resuming briefly to wrap up.`);
+        // A remote wrapper's own timeout may fire slightly after ours; let the killed agent exit before its session is resumed.
+        await sleep(WRAP_UP_DELAY_MS);
+        const w = await attempt(a.sessionId, buildWrapUpPrompt, Math.min(WRAP_UP_MS, timeoutMs), true);
+        if (!w.timedOut && w.outcome) outcome = w.outcome;
+      }
       break;
     }
-    try {
-      const br = deps.backend.parse(r);
-      const decision = decide(parseAgentOutput(br.text));
-      const sessionId = br.sessionId ?? sid;
-      outcome = { ok: true, decision, sessionId, entry: { ...entry, sessionId } };
+    if (a.outcome) {
+      outcome = a.outcome;
       break;
-    } catch (e) {
-      await write({ ...entry, error: errMsg(e) });
-      log(`Responder agent failed on #${t.number}${sid ? " (resumed session)" : ""}: ${errMsg(e)}`);
     }
   }
 
@@ -209,7 +234,8 @@ async function handleThread(deps: RespondDeps, t: Thread, p: Pending, log: (m: s
     if (!stillSame) return;
     const text =
       outcome.failure === "timeout"
-        ? `Could not reply within ${limits.timeout_minutes} minutes; @${deps.me} needs to handle this personally.`
+        ? `This request did not fit in the ${limits.timeout_minutes}-minute time limit for automatic replies, and no partial answer could be salvaged. ` +
+          `A narrower question (one part at a time) may still get an automatic reply; otherwise @${deps.me} needs to handle this personally.`
         : `The responder agent failed; @${deps.me} needs to handle this personally.`;
     await postDecline(fresh, outcome.failure, text);
     return;

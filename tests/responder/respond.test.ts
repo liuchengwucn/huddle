@@ -18,6 +18,8 @@ const ok = (out: object, sessionId = "S1"): RunResult => ({
 });
 const replyOut = (body = "because X") => ({ kind: "reply", body_md: body, confidence: "high", sources: ["a.ts:1"], decline_reason: null });
 const fail: RunResult = { exitCode: 1, stdout: "", stderr: "No conversation found", timedOut: false, truncated: false, durationMs: 5 };
+const killed: RunResult = { exitCode: null, stdout: "", stderr: "", timedOut: true, truncated: false, durationMs: 1 };
+const argAfter = (spec: RunSpec, flag: string) => spec.argv[spec.argv.indexOf(flag) + 1];
 
 function setup(limits: Partial<Limits> = {}) {
   const machine: MachineConfig = { permission_mode: "auto", limits: { ...DEFAULT_LIMITS, ...limits } };
@@ -29,7 +31,7 @@ function setup(limits: Partial<Limits> = {}) {
   let script: (spec: RunSpec, i: number) => Promise<RunResult> | RunResult = () => ok(replyOut());
   const deps: RespondDeps = {
     transport: t, me: "alice", machine, backend: claudeBackend(machine), cwd: "/tmp", auditDir: dir,
-    repo: DEFAULT_REPO_CONFIG, log: (m) => { if (process.env.DBG) console.log(m); },
+    repo: DEFAULT_REPO_CONFIG, log: (m) => { if (process.env.DBG) console.log(m); }, sleep: async () => {},
     run: async (spec) => {
       calls.push(spec);
       return script(spec, calls.length - 1);
@@ -176,16 +178,53 @@ describe("respondOnce", () => {
   it("declines with timeout and with error after retries", async () => {
     const { t, deps, calls, setScript } = setup();
     const th = await sendAlice(t);
-    setScript(() => ({ exitCode: null, stdout: "", stderr: "", timedOut: true, truncated: false, durationMs: 1 }));
+    setScript(() => killed);
     await respondOnce(deps);
-    expect((await t.getThread(th.number)).messages[1].meta).toEqual({ type: "decline", re: th.id, reason: "timeout" });
-    expect(calls).toHaveLength(1);
+    const d = (await t.getThread(th.number)).messages[1];
+    expect(d.meta).toEqual({ type: "decline", re: th.id, reason: "timeout" });
+    expect(d.body).toContain("narrower question");
+    expect(calls).toHaveLength(2); // the run, then one wrap-up run that also timed out
 
     const th2 = await sendAlice(t, "q2");
     setScript(() => fail);
     await respondOnce(deps);
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
     expect((await t.getThread(th2.number)).messages[1].meta).toEqual({ type: "decline", re: th2.id, reason: "error" });
+  });
+
+  it("resumes a timed-out run once to post a partial answer", async () => {
+    const { t, deps, calls, dir, setScript } = setup();
+    const th = await sendAlice(t);
+    let slept = 0;
+    deps.sleep = async (ms) => { slept += ms; };
+    setScript((_spec, i) => (i === 0 ? killed : ok(replyOut("partial: done A, left B"), "ignored")));
+    await respondOnce(deps);
+    const m = (await t.getThread(th.number)).messages[1];
+    expect(m.meta).toEqual({ type: "reply", re: th.id });
+    expect(m.body).toContain("partial: done A, left B");
+    expect(slept).toBe(10_000);
+    // The fresh run got a preset session id, and the wrap-up resumes exactly that session with a short limit.
+    const sid = argAfter(calls[0], "--session-id");
+    expect(sid).toMatch(/^[0-9a-f-]{36}$/);
+    expect(argAfter(calls[1], "--resume")).toBe(sid);
+    expect(calls[0].timeoutMs).toBe(600_000);
+    expect(calls[1].timeoutMs).toBe(120_000);
+    expect(calls[0].stdin).toContain("## Time limit");
+    expect(calls[1].stdin).toContain("reached its time limit");
+    const rows = (await readRecentAudit(1, new Date(), dir)).filter((e) => e.threadId === th.id);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ error: "timeout", sessionId: null, postedType: null });
+    expect(rows[1]).toMatchObject({ wrapUp: true, resumed: true, sessionId: "ignored", postedType: "reply" });
+  });
+
+  it("skips the wrap-up when the killed run's session is unknown", async () => {
+    const { t, deps, calls, setScript } = setup();
+    deps.backend = { ...deps.backend, killedSessionId: () => null };
+    const th = await sendAlice(t);
+    setScript(() => killed);
+    await respondOnce(deps);
+    expect(calls).toHaveLength(1);
+    expect((await t.getThread(th.number)).messages[1].meta).toMatchObject({ type: "decline", reason: "timeout" });
   });
 
   it("takes the agent timeout and round limit from the machine limits", async () => {

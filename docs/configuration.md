@@ -34,8 +34,8 @@ categories:
 | `command` | built-in | argv array (no shell) used to run the agent, e.g. a wrapper script. |
 | `permission_mode` | `auto` | Claude permission mode: `auto` or `bypassPermissions`. |
 | `limits.rounds_per_thread` | `8` | Automatic replies per thread; after that the thread is declined with `rate_limited`. |
-| `limits.replies_per_hour` | `20` | Agent runs within any rolling hour on this machine; further messages wait until the count drops. |
-| `limits.timeout_minutes` | `10` | Time limit for one agent run. |
+| `limits.replies_per_hour` | `20` | Agent runs within any rolling hour on this machine; further messages wait until the count drops. A wrap-up run after a timeout also counts, but is never blocked by the limit. |
+| `limits.timeout_minutes` | `10` | Time limit for one agent run. The agent is told the deadline; if it is still killed, its session is resumed once for up to 2 more minutes to post a partial answer. |
 
 ## Running the agent on a remote host
 

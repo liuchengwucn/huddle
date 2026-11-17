@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Message, Thread } from "../../src/core/types.js";
-import { buildContinuationPrompt, buildInitialPrompt } from "../../src/responder/prompt.js";
+import { buildContinuationPrompt, buildInitialPrompt, buildWrapUpPrompt } from "../../src/responder/prompt.js";
 
 const ctx = { owner: "me", sender: "bob", threadUrl: "https://x/1", threadNumber: 1, publicThread: false };
 const msg = (body: string): Message => ({ id: "1", author: "bob", createdAt: new Date("2026-11-10T00:00:00Z"), body, meta: null, url: "u" });
@@ -15,6 +15,31 @@ describe("prompt", () => {
   it("adds the PUBLIC rule only for public threads", () => {
     expect(buildContinuationPrompt({ ...ctx, publicThread: true }, [msg("q")], false)).toContain("This thread is PUBLIC");
     expect(buildContinuationPrompt(ctx, [msg("q")], false)).not.toContain("PUBLIC");
+  });
+
+  it("states the time limit in UTC and Unix time, with a wrap-up point at 80%", () => {
+    const time = { start: new Date("2026-11-17T01:22:57.400Z"), deadline: new Date("2026-11-17T01:32:57.400Z") };
+    const p = buildContinuationPrompt({ ...ctx, time }, [msg("q")], false);
+    expect(p).toContain("You have 10 minutes");
+    expect(p).toContain("2026-11-17T01:32:57Z (UTC; Unix time 1794879177)");
+    expect(p).toContain("At 2026-11-17T01:30:57Z (UTC; Unix time 1794879057)");
+    expect(p).toContain("date +%s");
+    expect(buildContinuationPrompt(ctx, [msg("q")], false)).not.toContain("Time limit");
+  });
+
+  it("falls back to /tmp when TMPDIR is unset", () => {
+    expect(buildContinuationPrompt(ctx, [msg("q")], false)).toContain("${TMPDIR:-/tmp}/huddle-1/");
+  });
+
+  it("asks a wrap-up run to clean up and report partial results, without forbidding tools", () => {
+    const time = { start: new Date("2026-11-17T01:33:07Z"), deadline: new Date("2026-11-17T01:35:07Z") };
+    const p = buildWrapUpPrompt({ ...ctx, time });
+    expect(p).toContain("reached its time limit");
+    expect(p).toContain("until 2026-11-17T01:35:07Z (UTC; Unix time 1794879307");
+    expect(p).toContain("${TMPDIR:-/tmp}/huddle-1/");
+    expect(p).toContain("A partial answer is still kind=reply");
+    expect(p).toContain("Never kill by a broad pattern");
+    expect(p).toContain("Output format");
   });
 
   it("prevents message bodies from closing the envelope", () => {

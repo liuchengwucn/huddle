@@ -34,8 +34,8 @@ categories:
 | `command` | 内置 | 用来运行 agent 的 argv 数组（不经过 shell），例如一个包装脚本。 |
 | `permission_mode` | `auto` | Claude 的权限模式：`auto` 或 `bypassPermissions`。 |
 | `limits.rounds_per_thread` | `8` | 每个帖子的自动回复次数；超过后以 `rate_limited` 拒绝。 |
-| `limits.replies_per_hour` | `20` | 本机在任意滚动一小时内运行 agent 的次数；超出后，新消息等计数回落再处理。 |
-| `limits.timeout_minutes` | `10` | 单次 agent 运行的时间上限。 |
+| `limits.replies_per_hour` | `20` | 本机在任意滚动一小时内运行 agent 的次数；超出后，新消息等计数回落再处理。超时后的收尾运行也计入次数，但不受该上限阻挡。 |
+| `limits.timeout_minutes` | `10` | 单次 agent 运行的时间上限。agent 会被告知截止时间；如果仍被终止，huddle 会恢复它的会话一次，最多再给 2 分钟，用来发出部分结果。 |
 
 ## 在远程主机上运行 agent
 

@@ -41,6 +41,8 @@ export function codexBackend(cfg: MachineConfig): Backend {
         ? [...command, "exec", "resume", "--json", "-c", 'sandbox_mode="danger-full-access"', resumeSessionId, "-"]
         : [...command, "exec", "--json", "--sandbox", "danger-full-access", "-"];
     },
+    // thread.started is the first event, so it is in stdout even when the run was killed.
+    killedSessionId: (r) => parseEvents(r.stdout).sessionId,
     parse(r: RunResult): BackendRun {
       if (r.spawnError) throw new BackendError(`Cannot start ${command[0]}: ${r.spawnError}`);
       if (r.timedOut) throw new BackendError("timed out");

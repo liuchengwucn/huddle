@@ -10,7 +10,7 @@ export interface WaitResult {
 
 const declineHint = (reason: string, n: number): string =>
   ({
-    timeout: `You can retry later with huddle send ${n} "<text>".`,
+    timeout: `The request was too big for one automatic run; send a narrower follow-up (one part at a time) with huddle send ${n} "<text>".`,
     error: `You can retry later with huddle send ${n} "<text>".`,
     low_confidence: "They do not know enough to reply; consider sending to someone else.",
     refused: "They declined to reply; tell the user why.",

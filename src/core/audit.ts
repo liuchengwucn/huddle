@@ -24,6 +24,7 @@ export interface AuditEntry {
   discardReason: DiscardReason | null;
   retraction?: boolean;       // the post was a retraction notice after the owner deleted an automatic reply
   covers?: string[];          // ids of every sender message this round answered, so a retraction survives deletion of the re target
+  wrapUp?: boolean;           // a short resumed run after the previous run hit the time limit, to salvage a partial answer
   durationMs: number;
   error?: string;
 }

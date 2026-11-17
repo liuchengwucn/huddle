@@ -8,9 +8,12 @@ export interface BackendRun {
 export interface Backend {
   readonly name: "claude" | "codex";
   readonly command: string[];
-  argv(opts: { resumeSessionId: string | null }): string[];
+  /** newSessionId: a fresh UUID for a fresh run, used by backends that let the caller pick the session id. */
+  argv(opts: { resumeSessionId: string | null; newSessionId?: string | null }): string[];
   /** Throws BackendError on failure. */
   parse(r: RunResult): BackendRun;
+  /** The session of a fresh run that was killed before printing its result, if it can be recovered (for a wrap-up run). */
+  killedSessionId(r: RunResult, newSessionId: string | null): string | null;
 }
 
 export class BackendError extends Error {}
