@@ -33,7 +33,7 @@ You have ${minutes} minutes. Your process is killed at ${utc(end)} (UTC; Unix ti
 }
 
 const PARTIAL =
-  "A partial answer is still kind=reply, with confidence rating only the part that is done. It says clearly what is done (with results so far), what is left, and how the sender can continue. " +
+  "A partial answer is still kind=reply, and its confidence rates only the part that is done (see Output format). It says clearly what is done (with results so far), what is left, and how the sender can continue. " +
   "Your temporary files are deleted, so put any script worth reusing inline in body_md.";
 
 function envelope(msgs: Message[], unansweredIds: ReadonlySet<string> = new Set()): string {
@@ -90,6 +90,7 @@ Output a single JSON object and no other text:
 - kind=reply: body_md is your reply.
 - kind=decline: body_md explains why, and who needs to confirm what; set decline_reason to low_confidence (you do not know enough to reply) or refused (you should not reply).
 - When kind is reply, set decline_reason to null.
+- confidence rates how sure you are of what body_md says, not how complete it is. A partial answer whose findings are solid is high; low turns the reply into a decline.
 - sources: at most 5, the most important; the body already cites the rest.`;
 }
 
